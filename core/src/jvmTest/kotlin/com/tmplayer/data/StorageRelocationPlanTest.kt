@@ -10,8 +10,8 @@ import java.io.File
 class StorageRelocationPlanTest {
 
     private val gb = 1024L * 1024 * 1024
-    private val cache = File("/home/me/.cache/TMPlayer/cache")
-    private val downloads = File("/home/me/Downloads/TMPlayer")
+    private val cache = File("/home/me/.cache/TG Stream/cache")
+    private val downloads = File("/home/me/Downloads/TG Stream")
 
     private fun candidate(
         root: String = "/mnt/big",
@@ -30,7 +30,7 @@ class StorageRelocationPlanTest {
     }
 
     @Test
-    fun `a folder TMPlayer cannot write in is refused first`() {
+    fun `a folder TG Stream cannot write in is refused first`() {
         val verdict = validate(candidate(writable = false, free = 0))
         assertEquals(StorageRelocationPlan.Verdict.Refused(StorageRelocationPlan.CANNOT_WRITE), verdict)
     }
@@ -39,17 +39,17 @@ class StorageRelocationPlanTest {
     fun `a folder inside the current downloads, or holding them, is refused`() {
         assertEquals(
             StorageRelocationPlan.Verdict.Refused(StorageRelocationPlan.NESTED),
-            validate(candidate(root = "/home/me/Downloads/TMPlayer/sub")),
+            validate(candidate(root = "/home/me/Downloads/TG Stream/sub")),
         )
-        // ~/Downloads/TMPlayer is the default downloads folder itself.
+        // ~/Downloads/TG Stream is the default downloads folder itself.
         assertEquals(
             StorageRelocationPlan.Verdict.Refused(StorageRelocationPlan.NESTED),
             validate(candidate(root = "/home/me/Downloads")),
         )
-        // The new TMPlayer folder would hold the cache.
+        // The new TG Stream folder would hold the cache.
         assertEquals(
             StorageRelocationPlan.Verdict.Refused(StorageRelocationPlan.NESTED),
-            StorageRelocationPlan.validate(candidate(root = "/data"), listOf(File("/data/TMPlayer/cache")), null, 0),
+            StorageRelocationPlan.validate(candidate(root = "/data"), listOf(File("/data/TG Stream/cache")), null, 0),
         )
     }
 
@@ -67,7 +67,7 @@ class StorageRelocationPlanTest {
     }
 
     @Test
-    fun `a folder TMPlayer used before is offered for adopting`() {
+    fun `a folder TG Stream used before is offered for adopting`() {
         assertEquals(StorageRelocationPlan.Verdict.Allowed(adopt = true, warning = null), validate(candidate(marker = true)))
     }
 
@@ -82,17 +82,17 @@ class StorageRelocationPlanTest {
     fun `the confirm dialog says what moves and what is cleared`() {
         val (title, body) = StorageRelocationPlan.confirmText(
             where = "E:\\",
-            newDownloads = "E:\\TMPlayer\\downloads",
-            newCache = "E:\\TMPlayer\\cache",
+            newDownloads = "E:\\TG Stream\\downloads",
+            newCache = "E:\\TG Stream\\cache",
             downloadCount = 12,
             downloadsBytes = 38 * gb,
             cacheBytes = (3.1 * gb).toLong(),
             adopt = false,
         )
-        assertEquals("Move TMPlayer's files to E:\\?", title)
+        assertEquals("Move TG Stream's files to E:\\?", title)
         assertEquals(
-            "Downloads (12 videos, 38.0 GB) move to E:\\TMPlayer\\downloads. Recently played videos (3.1 GB) are cleared and " +
-                "start again at E:\\TMPlayer\\cache. Nothing is removed from Telegram. Playback and downloads " +
+            "Downloads (12 videos, 38.0 GB) move to E:\\TG Stream\\downloads. Recently played videos (3.1 GB) are cleared and " +
+                "start again at E:\\TG Stream\\cache. Nothing is removed from Telegram. Playback and downloads " +
                 "pause while this happens.",
             body,
         )
@@ -102,18 +102,18 @@ class StorageRelocationPlanTest {
     fun `only downloads with a file that is not in the new folder move`() {
         fun record(id: Long, path: String?) = ResumeRecord(1, id, id.toInt(), "v$id", "c", 1, 1, 0, 0, 0, path)
         val records = listOf(
-            record(1, "/home/me/Downloads/TMPlayer/a.mkv"),
-            record(2, "/mnt/big/TMPlayer/downloads/b.mkv"),
+            record(1, "/home/me/Downloads/TG Stream/a.mkv"),
+            record(2, "/mnt/big/TG Stream/downloads/b.mkv"),
             record(3, null),
-            record(4, "/home/me/Downloads/TMPlayer/gone.mkv"),
+            record(4, "/home/me/Downloads/TG Stream/gone.mkv"),
         )
-        val moving = StorageRelocationPlan.toMove(records, File("/mnt/big/TMPlayer/downloads")) { it.name != "gone.mkv" }
+        val moving = StorageRelocationPlan.toMove(records, File("/mnt/big/TG Stream/downloads")) { it.name != "gone.mkv" }
         assertEquals(listOf(1L), moving.map { it.messageId })
     }
 
     @Test
     fun `a pending move reads back as written, and blank is none`() {
-        val pending = StorageRelocationPlan.Pending("", "/home/me/.cache/TMPlayer/cache", "/mnt/big/TMPlayer/downloads")
+        val pending = StorageRelocationPlan.Pending("", "/home/me/.cache/TG Stream/cache", "/mnt/big/TG Stream/downloads")
         assertEquals(pending, StorageRelocationPlan.Pending.decode(pending.encode()))
         assertNull(StorageRelocationPlan.Pending.decode(""))
         assertNull(StorageRelocationPlan.Pending.decode("garbage"))
