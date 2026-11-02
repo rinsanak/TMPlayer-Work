@@ -37,6 +37,7 @@ data class OnlineAccount(
      * SubDL key hides it again, or brings it back (see [OnlineSubtitles.setSubdlKey]).
      */
     val msoneShown: Boolean = true,
+    val msoneAutomatic: Boolean = true,
     /** The gateway's last answer about MSone ([MsoneStatus]), kept so a failed check changes nothing. */
     val msoneState: MsoneState = MsoneState.Unknown,
     val msoneMessage: String = "",
@@ -93,6 +94,7 @@ class OnlineSubtitlesStore(private val file: File) {
             anonResetAt = l("anon_reset_at"),
             // Shown unless hidden on this device; the old opt-in key is not read.
             msoneShown = s("msone_hidden") != "true",
+            msoneAutomatic = s("msone_automatic") != "false",
             msoneState = MsoneState.of(s("msone_state")),
             msoneMessage = s("msone_message").take(500),
             msoneCheckedAt = l("msone_checked_at"),
@@ -116,6 +118,7 @@ class OnlineSubtitlesStore(private val file: File) {
         p["anon_remaining"] = a.anonRemaining.toString()
         p["anon_reset_at"] = a.anonResetAt.toString()
         p["msone_hidden"] = (!a.msoneShown).toString()
+        p["msone_automatic"] = a.msoneAutomatic.toString()
         p["msone_state"] = a.msoneState.name
         p["msone_message"] = a.msoneMessage
         p["msone_checked_at"] = a.msoneCheckedAt.toString()

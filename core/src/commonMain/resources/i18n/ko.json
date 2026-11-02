@@ -1427,6 +1427,7 @@
     "turn_on_detail": "TMDB, TVmaze, AniList에서 이름으로 영상을 조회해요. 설정에서 바꿀 수 있어요"
   },
   "msone": {
+    "automatic": "말라얄람어 자막 자동으로 불러오기",
     "busy": "MSone이 바빠요. 잠시 후 다시 시도해 주세요",
     "check_again": "다시 확인",
     "checking": "MSone 자막을 쓸 수 있는지 확인하는 중…",

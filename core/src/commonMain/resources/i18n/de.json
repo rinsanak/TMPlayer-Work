@@ -1427,6 +1427,7 @@
     "turn_on_detail": "Schlägt Videos per Name bei TMDB, TVmaze und AniList nach. Änderbar in den Einstellungen"
   },
   "msone": {
+    "automatic": "Malayalam-Untertitel automatisch laden",
     "busy": "MSone ist ausgelastet. Versuche es in einer Minute erneut",
     "check_again": "Erneut prüfen",
     "checking": "Prüfe, ob MSone-Untertitel verfügbar sind…",

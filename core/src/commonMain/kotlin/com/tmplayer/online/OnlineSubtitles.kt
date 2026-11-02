@@ -50,6 +50,8 @@ class OnlineSubtitles(
     private val sleep: suspend (Long) -> Unit = { delay(it) },
     /** The build's key for TMPlayer's subtitle gateway; blank and MSone is not offered at all. */
     msoneKey: String = "",
+    private val directMsone: Boolean = false,
+    private val freeSubtitleBytes: () -> Long = { Long.MAX_VALUE },
 ) {
     private val userAgent = "TMPlayer v$appVersion"
     private val api = OpenSubtitlesApi(
@@ -61,9 +63,10 @@ class OnlineSubtitles(
     )
     private val subdl = SubdlApi(http, RateLimiter(200, now, sleep), userAgent)
     private val msone = MsoneApi(http, RateLimiter(500, now, sleep), userAgent, msoneKey)
+    private val msoneAddon = MsoneAddonApi(http, RateLimiter(500, now, sleep), userAgent)
 
     /** Whether this build can reach MSone at all: it has the gateway's key. */
-    val msoneInBuild: Boolean = msoneKey.isNotBlank()
+    val msoneInBuild: Boolean = directMsone || msoneKey.isNotBlank()
 
     /** Whether the screens offer MSone: a build with the key, and not hidden on this device. */
     val msoneShown: Boolean get() = msoneInBuild && store.now.msoneShown
@@ -326,6 +329,7 @@ class OnlineSubtitles(
      */
     fun blockedFor(hit: SubtitleHit, a: OnlineAccount = store.now): SubtitleNotice? {
         if (hit.provider == SubtitleProvider.Msone) {
+            if (directMsone) return null
             return SubtitleNotice.MsoneOff(a.msoneState, a.msone.message)
                 .takeIf { a.msoneState != MsoneState.On && cache.file(hit.provider, hit.id) == null }
         }
@@ -438,6 +442,11 @@ class OnlineSubtitles(
      * `paused` keeps them for watching offline.
      */
     suspend fun msoneStatus(force: Boolean = false): MsoneStatus = msoneLock.withLock {
+        if (directMsone) {
+            val status = MsoneStatus(MsoneState.On, null, now())
+            store.update { it.copy(msoneState = status.state, msoneMessage = "", msoneCheckedAt = status.checkedAt) }
+            return@withLock status
+        }
         val a = store.now
         val t = now()
         val age = t - a.msoneCheckedAt
@@ -470,6 +479,17 @@ class OnlineSubtitles(
      * already downloaded from a paused MSone still listed.
      */
     suspend fun searchMsone(target: SubtitleTarget): SearchResult {
+        if (directMsone) {
+            val key = "addon|${target.fileName.take(512)}|${target.sizeBytes}"
+            val lock = synchronized(locks) { locks.getOrPut(key) { Mutex() } }
+            return lock.withLock {
+                val kept = cache.search(key).orEmpty().filter { cache.file(it.provider, it.id) != null }
+                if (kept.isNotEmpty()) return@withLock SearchResult(kept, fromCache = true)
+                val result = msoneAddon.search(target)
+                if (result.hits.isNotEmpty()) cache.putSearch(key, result.hits)
+                result
+            }
+        }
         val status = msoneStatus()
         val parsed = MediaName.parse(target.fileName, target.caption)
         val query = msoneQuery(target)
@@ -534,6 +554,14 @@ class OnlineSubtitles(
      * is what MSone counts, so it is made once and then kept on the device.
      */
     private suspend fun downloadMsone(hit: SubtitleHit, target: SubtitleTarget?): DownloadResult {
+        if (directMsone) {
+            if (!hit.id.startsWith("addon:")) return DownloadResult.Failed(SubtitleNotice.MsoneGone)
+            if (freeSubtitleBytes() < SubtitleText.MAX_BYTES.toLong() * 2 + 65_536) return DownloadResult.Failed(SubtitleNotice.Unreadable)
+            val bytes = msoneAddon.fetch(hit) ?: return DownloadResult.Failed(SubtitleNotice.MsoneGone)
+            val text = SubtitleText.from(bytes, hit.fileName, language = "ml")
+                ?.takeIf { it.text.toByteArray(Charsets.UTF_8).size <= SubtitleText.MAX_BYTES }
+            return save(hit, text)
+        }
         val a = store.now
         if (a.msoneState != MsoneState.On) return DownloadResult.Failed(SubtitleNotice.MsoneOff(a.msoneState, a.msone.message))
         return when (val answer = msone.fetch(hit, SubtitleText.MAX_BYTES)) {
@@ -688,7 +716,7 @@ class OnlineSubtitles(
         var current: OnlineSubtitles? = null
 
         /** Whether the feature exists in this build, for About and Settings. */
-        val available: Boolean get() = current?.inBuild == true
+        val available: Boolean get() = current?.let { it.inBuild || it.msoneInBuild } == true
 
         /** The track name a downloaded subtitle gets: its language and where it came from. */
         fun label(hit: SubtitleHit): String =

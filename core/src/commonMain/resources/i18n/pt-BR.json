@@ -1427,6 +1427,7 @@
     "turn_on_detail": "Busca os vídeos pelo nome no TMDB, TVmaze e AniList. Mude em Configurações"
   },
   "msone": {
+    "automatic": "Carregar legendas em malaiala automaticamente",
     "busy": "O MSone está ocupado. Tente de novo em um minuto",
     "check_again": "Verificar de novo",
     "checking": "Verificando se há legendas do MSone…",

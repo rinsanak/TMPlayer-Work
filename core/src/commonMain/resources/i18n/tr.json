@@ -1427,6 +1427,7 @@
     "turn_on_detail": "Videoları ada göre TMDB, TVmaze ve AniList'te arar. Ayarlar'dan değiştirebilirsin"
   },
   "msone": {
+    "automatic": "Malayalam altyazıları otomatik yükle",
     "busy": "MSone meşgul. Bir dakika sonra tekrar dene",
     "check_again": "Tekrar kontrol et",
     "checking": "MSone altyazıları olup olmadığı kontrol ediliyor…",

@@ -59,3 +59,10 @@ Selected sleep timer/proxy child values do not reintroduce their unchecked paren
 - Applied the submitted Android UI selection, retaining dependencies described above.
 - Added localized chat picker labels and targeted core tests.
 - Pending GitHub compilation, tests and any corrections from them. No device test claimed.
+
+## 1.0.3 direct addon update
+
+Live movie/episode search and SRT downloads from the official addon succeeded on 2026-11-02.
+Android now uses MsoneAddonApi directly and does not require the TMPlayer gateway key. Search
+may still return 403 or other failures: no access-control bypass or endless retry is used.
+See TG-STREAM-MSONE-AUTO.md for matching, automatic loading and limitations.

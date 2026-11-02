@@ -359,6 +359,9 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
     /** Subtitle files loaded from the phone; a field because its picker registers before start. */
     private val subtitleFiles = SubtitleFiles(this, { player }, { showGestureFeedback(it) })
+    private var automaticMsoneJob: Job? = null
+    private var automaticMsoneStarted = false
+    private var subtitleChosenByViewer = false
 
     /** The viewer's Downmix to stereo answer, or null for the device default. See [AudioDownmix.wanted]. */
     private var downmixChoice: Boolean? = null
@@ -4007,6 +4010,10 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
     /** What belonged to the last video, cleared for the next one played in place. */
     private fun forgetTheLastVideo() {
+        automaticMsoneJob?.cancel()
+        automaticMsoneStarted = false
+        subtitleChosenByViewer = false
+        subtitleFiles.reset()
         // The scrub card's pictures were of the last video.
         trickplay?.forget()
         scrubArt = null
@@ -4181,6 +4188,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                 // Playing again is the only proof that a recovery worked, so the budget is
                 // refilled here rather than when the retry is issued.
                 Player.STATE_READY -> {
+                    startAutomaticMsone()
                     if (seekStartedAt > 0) {
                         Log.i(START_TAG, "seek to ready ${SystemClock.elapsedRealtime() - seekStartedAt} ms (file $fileId)")
                         seekStartedAt = 0L
@@ -5463,12 +5471,14 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
      * chosen for the series, and the OpenSubtitles hash when both ends of the file are on the disk
      * (always for a download; for a stream, once TDLib has fetched them).
      */
-    override suspend fun onlineTarget(): SubtitleTarget? {
+    override suspend fun onlineTarget(): SubtitleTarget? = subtitleTarget(includeHash = true)
+
+    private suspend fun subtitleTarget(includeHash: Boolean): SubtitleTarget? {
         if (mediaTitle.isBlank()) return null
         val local = downloadedFile
         val id = fileId
         val size = fileSizeBytes
-        val hash = withContext(Dispatchers.IO) {
+        val hash = if (!includeHash) null else withContext(Dispatchers.IO) {
             runCatching {
                 when {
                     // The hash is of the whole file's two ends, which for a joined video are two pieces.
@@ -5486,9 +5496,10 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             withContext(Dispatchers.IO) { OnlineMetadata.current?.idsFor(currentItem()) }
         } ?: com.tmplayer.online.VideoIds()
         return SubtitleTarget(
-            fileName = mediaTitle,
+            fileName = mediaFileName.ifBlank { mediaTitle },
             sizeBytes = size,
             hash = hash,
+            caption = mediaCaption.ifBlank { null },
             languages = OnlineSubtitles.languagesFor(tracks.textLanguage),
             imdb = ids.imdb,
             tmdb = ids.tmdb,
@@ -5502,10 +5513,69 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
     override fun attachOnlineSubtitle(file: File, label: String) = subtitleFiles.attachFile(file, label)
 
     override val pickSubtitleFile: (() -> Unit)?
-        get() = if (FormFactor.isTv(this)) null else ({ subtitleFiles.pick() })
+        get() = if (FormFactor.isTv(this)) null else ({ cancelAutomaticMsone(); subtitleFiles.pick() })
 
     fun showTrackPicker(trackType: Int) {
+        if (trackType == C.TRACK_TYPE_TEXT) cancelAutomaticMsone()
         TrackPickerFragment.show(supportFragmentManager, R.id.overlay_container, trackType)
+    }
+
+    private fun cancelAutomaticMsone() {
+        subtitleChosenByViewer = true
+        automaticMsoneJob?.cancel()
+    }
+
+    /** Never waits before playback, and never replaces a choice made while the request ran. */
+    private fun startAutomaticMsone() {
+        val online = OnlineSubtitles.current ?: return
+        val exo = player ?: return
+        if (automaticMsoneStarted || subtitleChosenByViewer || handingOver || isFinishing ||
+            !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) ||
+            !online.msoneShown || !online.store.now.msoneAutomatic || isAudio) return
+        automaticMsoneStarted = true
+        val item = currentItem()
+        val revision = subtitleFiles.revision
+        automaticMsoneJob = itemScope.launch {
+            try {
+                val loaded = withTimeoutOrNull(25_000) {
+                    val prefs = settings.trackPreferencesNow()
+                    if (prefs.subtitlesOff || prefs.mode == SubtitleMode.OffUnlessChosen) return@withTimeoutOrNull true
+                    val selectedMalayalam = exo.currentTracks.groups.any { group ->
+                        group.type == C.TRACK_TYPE_TEXT && (0 until group.length).any { index ->
+                            group.isTrackSelected(index) && group.getTrackFormat(index).language?.lowercase() in setOf("ml", "mal")
+                        }
+                    }
+                    if (selectedMalayalam || subtitleFiles.files.isNotEmpty()) return@withTimeoutOrNull true
+                    val target = subtitleTarget(includeHash = false) ?: return@withTimeoutOrNull true
+                    val result = withContext(Dispatchers.IO) { online.searchMsone(target) }
+                    val hit = com.tmplayer.online.MsoneAddonApi.automaticHit(target, result.hits)
+                    if (hit == null) {
+                        if (!subtitleChosenByViewer) showGestureFeedback(result.notice?.let { com.tmplayer.online.OnlineWords.notice(it) } ?: L.msoneNoResults)
+                        return@withTimeoutOrNull true
+                    }
+                    val free = cacheDir.usableSpace
+                    val needed = com.tmplayer.online.SubtitleText.MAX_BYTES.toLong() * 2 + 65_536
+                    if (free < needed) {
+                        showGestureFeedback(L.storageDriveTooSmall(com.tmplayer.data.StorageRelocationPlan.size(free), com.tmplayer.data.StorageRelocationPlan.size(needed)))
+                        return@withTimeoutOrNull true
+                    }
+                    val download = withContext(Dispatchers.IO) { online.download(hit, target) }
+                    if (player !== exo || currentItem().id != item.id || subtitleChosenByViewer ||
+                        subtitleFiles.revision != revision || !online.store.now.msoneAutomatic || !online.msoneShown ||
+                        !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) return@withTimeoutOrNull true
+                    when (download) {
+                        is com.tmplayer.online.DownloadResult.Done -> subtitleFiles.attachFile(download.file, download.label)
+                        is com.tmplayer.online.DownloadResult.Failed -> showGestureFeedback(L.msoneUnreadable)
+                    }
+                    true
+                }
+                if (loaded == null && !subtitleChosenByViewer) showGestureFeedback(L.msoneOffline)
+            } catch (failure: kotlinx.coroutines.CancellationException) {
+                throw failure
+            } catch (failure: Exception) {
+                if (!subtitleChosenByViewer) showGestureFeedback(L.msoneOffline)
+            }
+        }
     }
 
     /**
@@ -6342,7 +6412,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             PhoneMenuEntry.PreviousFrame -> frameStep(forward = false)
             PhoneMenuEntry.SaveFrame -> saveFrame()
             PhoneMenuEntry.OpenInAnotherApp -> openInAnotherApp()
-            PhoneMenuEntry.LoadSubtitleFile -> subtitleFiles.pick()
+            PhoneMenuEntry.LoadSubtitleFile -> { cancelAutomaticMsone(); subtitleFiles.pick() }
             PhoneMenuEntry.SaveToDownloads -> saveToDownloads()
             PhoneMenuEntry.MarkWatched -> toggleWatched()
             PhoneMenuEntry.ResetZoom -> resetZoom()
@@ -8591,6 +8661,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
      */
     override fun onStart() {
         super.onStart()
+        if (player?.playbackState == Player.STATE_READY) startAutomaticMsone()
         if (openingFilm) watchOpening()
         // Back in front: the session comes home from the notification, the sound never stopped,
         // and the picture comes back on (turned off only while nobody could see it).
@@ -8621,6 +8692,10 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
     override fun onStop() {
         super.onStop()
+        if (automaticMsoneJob?.isActive == true) {
+            automaticMsoneJob?.cancel()
+            automaticMsoneStarted = false
+        }
         // Counted again from the start when the viewer is back ([onStart]).
         openingWatch?.cancel()
         rebufferWatch?.cancel()

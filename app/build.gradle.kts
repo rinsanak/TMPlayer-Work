@@ -112,7 +112,7 @@ android {
         // upgrade of the wrong one; nothing here goes to a store. For sideloading, equal codes are
         // what lets somebody who took the universal file swap to the arm64 one without Android
         // refusing it as a downgrade, which an offset scheme would cause in one direction.
-        val tmVersionName = (findProperty("tmVersionName") as String?) ?: "1.0.2"
+        val tmVersionName = (findProperty("tmVersionName") as String?) ?: "1.0.3"
         versionCode = (findProperty("tmVersionCode") as String?)?.toInt() ?: releaseVersionCode(tmVersionName)
         versionName = tmVersionName
 

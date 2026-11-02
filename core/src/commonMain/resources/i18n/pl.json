@@ -1427,6 +1427,7 @@
     "turn_on_detail": "Wyszukuje filmy po nazwie w TMDB, TVmaze i AniList. Zmienisz to w Ustawieniach"
   },
   "msone": {
+    "automatic": "Automatycznie wczytuj napisy malajalam",
     "busy": "MSone jest zajęty. Spróbuj za minutę",
     "check_again": "Sprawdź ponownie",
     "checking": "Sprawdzam, czy napisy MSone są dostępne…",

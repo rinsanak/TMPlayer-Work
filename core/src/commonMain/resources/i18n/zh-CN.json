@@ -1427,6 +1427,7 @@
     "turn_on_detail": "按名称在 TMDB、TVmaze 和 AniList 上查询视频。可在设置中更改"
   },
   "msone": {
+    "automatic": "自动加载马拉雅拉姆语字幕",
     "busy": "MSone 正忙。请一分钟后再试",
     "check_again": "重新检查",
     "checking": "正在检查 MSone 字幕是否可用…",

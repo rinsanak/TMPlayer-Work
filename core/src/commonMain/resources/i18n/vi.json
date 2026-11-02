@@ -1427,6 +1427,7 @@
     "turn_on_detail": "Tra cứu video theo tên trên TMDB, TVmaze và AniList. Đổi trong Cài đặt"
   },
   "msone": {
+    "automatic": "Tự động tải phụ đề tiếng Malayalam",
     "busy": "MSone đang bận. Hãy thử lại sau một phút",
     "check_again": "Kiểm tra lại",
     "checking": "Đang kiểm tra phụ đề MSone có dùng được không…",

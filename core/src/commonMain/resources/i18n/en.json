@@ -1427,6 +1427,7 @@
     "turn_on_detail": "Looks videos up by name on TMDB, TVmaze and AniList. Change it in Settings"
   },
   "msone": {
+    "automatic": "Load Malayalam subtitles automatically",
     "busy": "MSone is busy. Try again in a minute",
     "check_again": "Check again",
     "checking": "Checking whether MSone subtitles are available…",

@@ -75,3 +75,9 @@ partial failure, non-advancing cursors and cancellation. No signed-in phone or T
 
 The older TelePlay 6.2 beta has a different application identity/update channel. This release
 updates the TMPlayer-Work 1.0.x fork only; do not claim it updates the separate older app.
+
+## 1.0.3 automatic MSone subtitles
+
+See TG-STREAM-MSONE-AUTO.md. The Android fork uses the official addon directly; desktop/web
+behavior stays as before. Android automatically tries one validated match after playback is
+ready, with manual choices taking precedence. Tests and the signed GitHub release follow.

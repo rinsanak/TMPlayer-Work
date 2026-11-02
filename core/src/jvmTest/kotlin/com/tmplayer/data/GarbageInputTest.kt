@@ -199,6 +199,12 @@ class GarbageInputTest {
                 MsoneApi.parseHits(text)
                 MsoneApi.parseHits("{\"hits\":[{\"id\":$text,\"title\":$text,\"year\":$text,\"translator\":$text,\"downloadUrl\":$text}]}")
             }
+            survive("MsoneAddonApi.parse", text) {
+                val name = MediaName.parse("Quiet Hills S01E02.mkv")
+                com.tmplayer.online.MsoneAddonApi.catalogId(text, name)
+                com.tmplayer.online.MsoneAddonApi.parseHits(text, "tt1234567:1:2", name)
+                com.tmplayer.online.MsoneAddonApi.safeLink(text)
+            }
         }
         assertNoFailures()
     }

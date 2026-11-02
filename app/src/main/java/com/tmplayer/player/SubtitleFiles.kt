@@ -43,6 +43,14 @@ class SubtitleFiles(
     private val say: (String) -> Unit,
 ) {
     private val loaded = mutableListOf<Media3Item.SubtitleConfiguration>()
+    var revision: Int = 0
+        private set
+
+    fun reset() {
+        revision++
+        loaded.clear()
+        pending = null
+    }
 
     /** Every file loaded so far: what a cast sends to the TV as side tracks (CP73). */
     val files: List<Media3Item.SubtitleConfiguration> get() = loaded.toList()
@@ -62,6 +70,7 @@ class SubtitleFiles(
 
     /** Opens the document picker. Every file is offered; the extension is checked on the way back. */
     fun pick() {
+        revision++
         runCatching { picker.launch(arrayOf("*/*")) }
             .onFailure { say(L.tracksNoFilePicker) }
     }
@@ -112,6 +121,7 @@ class SubtitleFiles(
     fun attachChatFile(file: File, name: String) = load(Uri.fromFile(file), name)
 
     private fun load(uri: Uri, nameOverride: String? = null) {
+        revision++
         activity.lifecycleScope.launch {
             val name = nameOverride ?: withContext(Dispatchers.IO) { displayName(uri) } ?: L.tracksFileFallbackName
             val extension = ExternalSubtitle.extensionOf(name)
@@ -131,6 +141,7 @@ class SubtitleFiles(
     }
 
     private fun attach(copy: Copy.Done, name: String) {
+        revision++
         val exo = player() ?: return
         val video = exo.currentMediaItem?.localConfiguration?.uri ?: return
         val id = "external-${loaded.size + 1}"

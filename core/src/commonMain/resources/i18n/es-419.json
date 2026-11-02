@@ -1427,6 +1427,7 @@
     "turn_on_detail": "Busca los videos por nombre en TMDB, TVmaze y AniList. Cámbialo en Configuración"
   },
   "msone": {
+    "automatic": "Cargar subtítulos en malayalam automáticamente",
     "busy": "MSone está ocupado. Intenta de nuevo en un minuto",
     "check_again": "Revisar de nuevo",
     "checking": "Revisando si hay subtítulos de MSone…",

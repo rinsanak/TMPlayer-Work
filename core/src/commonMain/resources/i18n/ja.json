@@ -1427,6 +1427,7 @@
     "turn_on_detail": "TMDB、TVmaze、AniListで動画名から検索します。設定で変更できます"
   },
   "msone": {
+    "automatic": "マラヤーラム語字幕を自動で読み込む",
     "busy": "MSoneは混み合っています。しばらくしてからもう一度お試しください",
     "check_again": "もう一度確認",
     "checking": "MSoneの字幕が使えるか確認中…",

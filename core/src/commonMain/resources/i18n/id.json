@@ -1427,6 +1427,7 @@
     "turn_on_detail": "Mencari video lewat nama di TMDB, TVmaze, dan AniList. Ubah di Pengaturan"
   },
   "msone": {
+    "automatic": "Muat subtitle Malayalam secara otomatis",
     "busy": "MSone sedang sibuk. Coba lagi sebentar lagi",
     "check_again": "Periksa lagi",
     "checking": "Memeriksa apakah subtitle MSone tersedia…",

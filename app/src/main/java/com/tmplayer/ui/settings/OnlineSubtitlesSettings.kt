@@ -55,7 +55,24 @@ internal fun LazyListScope.onlineSubtitlesSection(onDialog: (OnlineDialog) -> Un
     item { MachineRow() }
     item { SubdlRow(onDialog) }
     item { MsoneRow() }
+    item { AutomaticMsoneRow() }
     item { CacheRow() }
+}
+
+@Composable
+private fun AutomaticMsoneRow() {
+    val online = OnlineSubtitles.current ?: return
+    val account by online.account.collectAsState()
+    if (!online.msoneInBuild || !account.msoneShown) return
+    val s = LocalStrings.current
+    val scope = rememberCoroutineScope()
+    ToggleRow(
+        title = s.msoneAutomatic,
+        subtitle = s.msoneSearchDetail,
+        icon = TmIcons.Subtitles,
+        checked = account.msoneAutomatic,
+        onToggle = { scope.launch(Dispatchers.IO) { online.store.update { it.copy(msoneAutomatic = !it.msoneAutomatic) } } },
+    )
 }
 
 /**
