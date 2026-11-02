@@ -24,7 +24,7 @@ class WholeSeriesTest {
     )
 
     private fun show(chat: Long): Series =
-        (SeriesShelf.arrange(listOf(episode(chat, 1))).single() as ShelfEntry.Show).series
+        (SeriesShelf.arrange(listOf(episode(chat, 1), episode(chat, 2))).single() as ShelfEntry.Show).series
 
     @Test fun `first page appears before the next request finishes`() = runTest {
         val opened = show(81101)
@@ -32,14 +32,14 @@ class WholeSeriesTest {
         var calls = 0
         val result = WholeSeries.read(opened, fetch = { _, _, _, _ ->
             calls++
-            if (calls == 1) MediaPage(listOf(episode(81101, 2)), MediaCursors(video = 10), false)
+            if (calls == 1) MediaPage(listOf(episode(81101, 3)), MediaCursors(video = 10), false)
             else {
-                assertEquals(listOf(1, 2), counts)
+                assertEquals(listOf(2, 3), counts)
                 awaitCancellation()
             }
         }, onPage = { counts += it.episodeCount }, mergeDispatcher = StandardTestDispatcher(testScheduler))
-        assertEquals(2, result.episodeCount)
-        assertEquals(2, WholeSeries.peek(opened)?.episodeCount)
+        assertEquals(3, result.episodeCount)
+        assertEquals(3, WholeSeries.peek(opened)?.episodeCount)
         assertEquals(2, calls)
     }
 
@@ -47,10 +47,10 @@ class WholeSeriesTest {
         val opened = show(81102)
         var calls = 0
         val result = WholeSeries.read(opened, fetch = { _, _, _, _ ->
-            if (++calls == 1) MediaPage(listOf(episode(81102, 2)), MediaCursors(video = 10), false)
+            if (++calls == 1) MediaPage(listOf(episode(81102, 3)), MediaCursors(video = 10), false)
             else throw java.io.IOException("Offline")
         }, mergeDispatcher = StandardTestDispatcher(testScheduler))
-        assertEquals(2, result.episodeCount)
+        assertEquals(3, result.episodeCount)
     }
 
     @Test fun `an unchanged cursor stops rather than repeating the search`() = runTest {
@@ -68,13 +68,13 @@ class WholeSeriesTest {
         var cancelled = false
         try {
             WholeSeries.read(opened, fetch = { _, _, _, _ ->
-                if (++calls == 1) MediaPage(listOf(episode(81104, 2)), MediaCursors(video = 10), false)
+                if (++calls == 1) MediaPage(listOf(episode(81104, 3)), MediaCursors(video = 10), false)
                 else throw CancellationException("Page closed")
             }, mergeDispatcher = StandardTestDispatcher(testScheduler))
         } catch (_: CancellationException) {
             cancelled = true
         }
         assertTrue(cancelled)
-        assertEquals(2, WholeSeries.peek(opened)?.episodeCount)
+        assertEquals(3, WholeSeries.peek(opened)?.episodeCount)
     }
 }
