@@ -62,3 +62,16 @@ Android release workflow.
 See TG-STREAM-SUBTITLES.md for the Android chat subtitle picker, research and UI-selection
 dependencies. The submitted 291/344 selection is preserved in TG-STREAM-SELECTION.txt.
 GitHub tests and release build are the next verification steps; no signed-in device test claimed.
+
+## 1.0.2 title page update
+
+The supplied TMPlayer reference video shows the imported SeriesPanel design already in this
+repository. Preserve that design and the submitted settings selection on Android phone and TV.
+Desktop shares the episode search improvement; web is unchanged. WholeSeries now emits each
+search page, folds episodes off the UI thread, keeps partial results after a failed later page,
+cancels on close, limits each request to 12 seconds and the whole search to 30 seconds, and stops
+unchanged or cycling cursors. Cached results appear on reopen. Tests cover progressive answers,
+partial failure, non-advancing cursors and cancellation. No signed-in phone or TV test claimed.
+
+The older TelePlay 6.2 beta has a different application identity/update channel. This release
+updates the TMPlayer-Work 1.0.x fork only; do not claim it updates the separate older app.

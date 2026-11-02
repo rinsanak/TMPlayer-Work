@@ -13,6 +13,10 @@ import com.tmplayer.data.SizeFilter
 import com.tmplayer.data.Td
 import com.tmplayer.platform.LruMap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * A show's page with every episode its chat holds, not only those the screen it was opened from
@@ -23,7 +27,7 @@ import kotlinx.coroutines.CancellationException
 @Composable
 fun rememberWholeSeries(series: Series): Series {
     val whole by produceState(WholeSeries.peek(series) ?: series, series) {
-        val read = runCatching { WholeSeries.read(series) }.getOrElse { failure ->
+        val read = runCatching { WholeSeries.read(series, onPage = { value = it }) }.getOrElse { failure ->
             if (failure is CancellationException) throw failure
             null
         }
@@ -47,19 +51,41 @@ object WholeSeries {
     suspend fun read(
         series: Series,
         fetch: suspend (chatId: Long, query: String, cursors: MediaCursors, topicId: Int) -> MediaPage? = ::telegram,
+        onPage: (Series) -> Unit = {},
+        mergeDispatcher: CoroutineDispatcher = Dispatchers.Default,
     ): Series {
         val query = SeriesFill.queryOf(series) ?: return series
         val chatId = series.cover.chatId
         val topic = series.cover.topicId
-        val found = ArrayList<MediaItem>()
+        var whole = peek(series) ?: series
+        onPage(whole)
         var cursors = MediaCursors()
-        for (page in 0 until SeriesFill.MAX_PAGES) {
-            val read = fetch(chatId, query, cursors, topic) ?: break
-            found += read.items.filter { SizeFilter.matches(it.sizeBytes, SizeFilter.DEFAULT_MIN, SizeFilter.DEFAULT_MAX) }
-            if (read.endReached || read.cursors.allDone) break
-            cursors = read.cursors
+        val visited = HashSet<MediaCursors>()
+        // Draw each answer as it arrives. Slow later pages must not hide usable episodes,
+        // and closing the page cancels the read while retaining the answers already drawn.
+        withTimeoutOrNull(READ_TIMEOUT_MS) {
+            for (page in 0 until SeriesFill.MAX_PAGES) {
+                if (!visited.add(cursors)) break
+                val read = try {
+                    withTimeoutOrNull(PAGE_TIMEOUT_MS) { fetch(chatId, query, cursors, topic) }
+                } catch (failure: Exception) {
+                    if (failure is CancellationException) throw failure
+                    null
+                } ?: break
+                val next = withContext(mergeDispatcher) {
+                    SeriesFill.merge(whole, read.items.filter {
+                        SizeFilter.matches(it.sizeBytes, SizeFilter.DEFAULT_MIN, SizeFilter.DEFAULT_MAX)
+                    })
+                }
+                if (next != whole) {
+                    whole = next
+                    kept[keyOf(series)] = whole
+                    onPage(whole)
+                }
+                if (read.endReached || read.cursors.allDone) break
+                cursors = read.cursors
+            }
         }
-        val whole = SeriesFill.merge(peek(series) ?: series, found)
         kept[keyOf(series)] = whole
         return whole
     }
@@ -73,4 +99,6 @@ object WholeSeries {
 
     /** Shows kept made whole: a run's worth of pages opened. */
     private const val KEPT = 48
+    private const val PAGE_TIMEOUT_MS = 12_000L
+    private const val READ_TIMEOUT_MS = 30_000L
 }
