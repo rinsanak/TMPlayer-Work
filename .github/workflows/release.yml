@@ -7,6 +7,10 @@ on:
     paths: [".github/tg-stream-build-request"]
   workflow_dispatch:
 
+concurrency:
+  group: tg-stream-android-release-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   actions: read
@@ -132,6 +136,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if [ "$GITHUB_REF_TYPE" = "branch" ]; then
+            CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$GITHUB_REF_NAME" --jq .object.sha)"
+            if [ "$CURRENT" != "$GITHUB_SHA" ]; then echo "::error::A newer source commit exists. Publish its build instead."; exit 1; fi
+          fi
           ARGS=()
           if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then ARGS+=(--prerelease); fi
           gh release create "${{ steps.version.outputs.tag }}" dist/* --target "$GITHUB_SHA" --title "TG Stream ${{ steps.version.outputs.name }}" \

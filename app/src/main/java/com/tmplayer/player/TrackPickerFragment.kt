@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ComposeView
@@ -266,6 +267,7 @@ class TrackPickerFragment : Fragment() {
         val owner = host ?: return
         val scope = rememberCoroutineScope()
         var query by remember { mutableStateOf("") }
+        var searchFocused by remember { mutableStateOf(false) }
         var cursors by remember { mutableStateOf(listOf(0L)) }
         var attempt by remember { mutableIntStateOf(0) }
         var result by remember { mutableStateOf<com.tmplayer.data.ChatSubtitles.Page?>(null) }
@@ -296,7 +298,7 @@ class TrackPickerFragment : Fragment() {
                 label = { M3Text(L.commonSearch) },
                 singleLine = true,
                 enabled = busy == null,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp).onFocusChanged { searchFocused = it.hasFocus },
             )
             val lines = buildList {
                 if (loading) add(Line("loading", L.commonLoading, enabled = false) {})
@@ -331,7 +333,8 @@ class TrackPickerFragment : Fragment() {
             }
             val focusKey = lines.firstOrNull { it.enabled }?.key
             Lines(lines, firstFocus, focusKey)
-            FocusOnOpen(if (focusKey != null) firstFocus else closeFocus, key = loading to from)
+            // Typing must keep the keyboard and focus through search/loading updates.
+            if (!searchFocused) FocusOnOpen(if (focusKey != null) firstFocus else closeFocus, key = loading to from)
         }
     }
 
