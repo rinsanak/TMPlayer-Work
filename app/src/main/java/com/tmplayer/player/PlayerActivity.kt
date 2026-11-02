@@ -6679,6 +6679,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
     /** Once a video, on its first picture: a file named as 3D says where 3D video is. Nothing changes by itself. */
     private fun hintStereo() {
+        if (!com.tmplayer.data.TgStreamUi.shows("M006")) return
         if (stereoHinted || stereo.on || stereoTagged == null) return
         stereoHinted = true
         showGestureFeedback(L.playerStereoFound)

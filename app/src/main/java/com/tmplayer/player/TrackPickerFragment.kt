@@ -310,13 +310,15 @@ class TrackPickerFragment : Fragment() {
                             scope.launch {
                                 try {
                                     val session = kotlinx.coroutines.withTimeout(20_000) { com.tmplayer.data.Td.awaitConnectedSession() }
-                                    val file = com.tmplayer.data.ChatSubtitles.download(session.client, owner.subtitleChatId, entry)
+                                    val file = com.tmplayer.data.ChatSubtitles.download(session.client, owner.subtitleChatId, entry, requireContext().cacheDir.usableSpace)
                                     owner.attachChatSubtitle(file, entry.name)
                                     close()
                                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                                     failure = L.errorsScreenFailedTitle
                                 } catch (e: kotlinx.coroutines.CancellationException) {
                                     throw e
+                                } catch (e: com.tmplayer.data.ChatSubtitles.NoSpace) {
+                                    failure = e.message ?: L.errorsScreenFailedTitle
                                 } catch (e: Exception) {
                                     failure = L.errorsScreenFailedTitle
                                 } finally { busy = null }

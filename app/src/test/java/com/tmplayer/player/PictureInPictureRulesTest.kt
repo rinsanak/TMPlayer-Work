@@ -18,13 +18,19 @@ class PictureInPictureRulesTest {
         PictureInPictureRules.entersOnLeaveHint(sdk, on, tv, playing, casting, sheet)
 
     @Test
-    fun `the setting is on by default and remembers off`() = runBlocking {
+    fun `the fork disables auto PiP without discarding its stored preference`() = runBlocking {
         val store = SettingsStore(ApplicationProvider.getApplicationContext<android.content.Context>())
-        assertTrue(store.pictureInPictureOnLeave.first())
-        store.setPictureInPictureOnLeave(false)
-        assertFalse(store.pictureInPictureOnLeave.first())
-        store.setPictureInPictureOnLeave(true)
-        assertTrue(store.pictureInPictureOnLeave.first())
+        val before = com.tmplayer.data.TgStreamUi.active
+        try {
+            com.tmplayer.data.TgStreamUi.active = true
+            assertFalse(store.pictureInPictureOnLeave.first())
+            store.setPictureInPictureOnLeave(true)
+            assertFalse(store.pictureInPictureOnLeave.first())
+            com.tmplayer.data.TgStreamUi.active = false
+            assertTrue(store.pictureInPictureOnLeave.first())
+            store.setPictureInPictureOnLeave(false)
+            assertFalse(store.pictureInPictureOnLeave.first())
+        } finally { com.tmplayer.data.TgStreamUi.active = before }
     }
 
     @Test

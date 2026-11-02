@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   release:
@@ -93,6 +94,7 @@ jobs:
           mkdir -p dist
           cp app/build/outputs/apk/release/app-universal-release.apk "dist/TG-Stream-${VERSION}-universal.apk"
           NOTES="$(git tag -l --format='%(contents:body)' "${{ steps.version.outputs.tag }}")"
+          if [ -z "$NOTES" ] && [ -f "docs/releases/$VERSION.md" ]; then NOTES="$(cat "docs/releases/$VERSION.md")"; fi
           if [ -z "$NOTES" ]; then NOTES="TG Stream ${VERSION}"; fi
           printf '%s\n' "$NOTES" > release-notes.md
           if [ "${{ steps.version.outputs.prerelease }}" != "true" ]; then
@@ -105,6 +107,26 @@ jobs:
       - name: Remove signing material
         if: always()
         run: rm -f release.keystore keystore.properties local.properties
+
+      - name: Require successful Android CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 40); do
+            CI_RUN="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=20" --jq '[.workflow_runs[] | select(.name == "CI")] | sort_by(.id) | last | .id // empty' || true)"
+            STATUS=""
+            if [ -n "$CI_RUN" ]; then
+              STATUS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN/jobs?filter=latest" --jq '.jobs[] | select(.name == "Test and build") | .conclusion // .status' || true)"
+            fi
+            case "$STATUS" in
+              success) exit 0 ;;
+              failure|cancelled|timed_out) echo "::error::Android CI did not pass ($STATUS). No release published."; exit 1 ;;
+            esac
+            echo "Waiting for Android CI: ${STATUS:-pending}"
+            sleep 15
+          done
+          echo "::error::Android CI was not successful within the wait window. Re-run after it completes."
+          exit 1
 
       - name: Publish GitHub release
         env:

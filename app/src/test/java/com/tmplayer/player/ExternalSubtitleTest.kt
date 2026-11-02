@@ -76,4 +76,13 @@ class ExternalSubtitleTest {
         val srt = ExternalSubtitle.microDvdToSrt("{1}{1}50\n{50}{100}Hi\n", fps = 25.0)
         assertEquals("1\n00:00:01,000 --> 00:00:02,000\nHi\n\n", srt)
     }
+    @org.junit.Test
+    fun `oversized MicroDVD frame numbers are skipped without losing valid cues`() {
+        val text = "{999999999999999999999999}{2}bad\n{24}{48}valid"
+        val converted = ExternalSubtitle.microDvdToSrt(text, 24.0)
+        org.junit.Assert.assertFalse(converted.contains("bad"))
+        org.junit.Assert.assertTrue(converted.contains("00:00:01,000 --> 00:00:02,000"))
+        org.junit.Assert.assertTrue(converted.contains("valid"))
+    }
+
 }

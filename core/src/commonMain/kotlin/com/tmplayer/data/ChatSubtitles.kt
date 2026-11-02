@@ -19,7 +19,7 @@ object ChatSubtitles {
     data class Page(val items: List<Entry>, val next: Long)
 
     fun accepts(name: String, bytes: Long): Boolean =
-        name.substringAfterLast('.', "").lowercase(java.util.Locale.ROOT) in extensions && bytes in 0..MAX_BYTES
+        name.substringAfterLast('.', "").lowercase(java.util.Locale.ROOT) in extensions && bytes in 1..MAX_BYTES
 
     suspend fun page(td: TdlClient, chatId: Long, query: String, from: Long = 0): Page = withContext(Dispatchers.IO) {
         if (chatId == 0L) return@withContext Page(emptyList(), 0)
@@ -37,8 +37,12 @@ object ChatSubtitles {
         }
     }
 
-    suspend fun download(td: TdlClient, chatId: Long, entry: Entry): File = withContext(Dispatchers.IO) {
+    class NoSpace(message: String) : IOException(message)
+
+    suspend fun download(td: TdlClient, chatId: Long, entry: Entry, availableBytes: Long): File = withContext(Dispatchers.IO) {
         if (entry.chatId != chatId || !accepts(entry.name, entry.bytes)) throw IOException("Invalid subtitle document")
+        val needed = entry.bytes + MAX_BYTES + 65_536
+        if (availableBytes < needed) throw NoSpace(com.tmplayer.i18n.L.storageDriveTooSmall(StorageRelocationPlan.size(availableBytes.coerceAtLeast(0)), StorageRelocationPlan.size(needed)))
         withTimeout(30_000) {
             val answer = td.downloadFile(entry.fileId, 16, 0, 0, true)
             val fetched = answer.valueOrNull ?: throw IOException(answer.errorMessage ?: "Telegram subtitle download failed")

@@ -15,5 +15,6 @@ class ChatSubtitlesTest {
         assertTrue(ChatSubtitles.accepts("x.srt", ChatSubtitles.MAX_BYTES))
         assertFalse(ChatSubtitles.accepts("x.srt", ChatSubtitles.MAX_BYTES + 1))
         assertFalse(ChatSubtitles.accepts("x.srt", -1))
+        assertFalse(ChatSubtitles.accepts("x.srt", 0))
     }
 }

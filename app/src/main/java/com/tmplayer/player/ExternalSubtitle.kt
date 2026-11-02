@@ -88,16 +88,15 @@ object ExternalSubtitle {
         val cues = text.lineSequence()
             .map { it.trim().trimStart('\uFEFF') }
             .mapNotNull { CUE.matchEntire(it) }
-            .toList()
-        var rate = fps.takeIf { it > 0 } ?: DEFAULT_FPS
+        var rate = fps.takeIf { it.isFinite() && it > 0 } ?: DEFAULT_FPS
         val out = StringBuilder()
         var number = 0
         cues.forEachIndexed { index, match ->
             val (startText, endText, body) = match.destructured
-            val start = startText.toLong()
-            val end = endText.toLong()
+            val start = startText.toLongOrNull() ?: return@forEachIndexed
+            val end = endText.toLongOrNull() ?: return@forEachIndexed
             if (index == 0 && start == end && start <= 1) {
-                body.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let {
+                body.trim().toDoubleOrNull()?.takeIf { it.isFinite() && it > 0 }?.let {
                     rate = it
                     return@forEachIndexed
                 }
@@ -108,6 +107,7 @@ object ExternalSubtitle {
             out.append(number).append('\n')
             out.append(clock(start, rate)).append(" --> ").append(clock(end.coerceAtLeast(start), rate)).append('\n')
             out.append(words).append("\n\n")
+            if (out.length > MAX_BYTES) return ""
         }
         return out.toString()
     }

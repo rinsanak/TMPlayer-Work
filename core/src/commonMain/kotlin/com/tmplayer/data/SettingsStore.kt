@@ -2147,7 +2147,9 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
     enum class TourState { Never, Pending, Done }
 
     /** Which tab of History was last open, `HistoryTab` by name. */
-    val historyTab: Flow<String?> = read { it[HISTORY_TAB] }
+    val historyTab: Flow<String?> = read { prefs ->
+        prefs[HISTORY_TAB].takeUnless { it == "Watched" && !TgStreamUi.shows("H010") }
+    }
 
     suspend fun setHistoryTab(name: String) {
         prefs.edit { it[HISTORY_TAB] = name }

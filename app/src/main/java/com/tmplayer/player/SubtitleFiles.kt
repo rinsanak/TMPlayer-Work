@@ -180,17 +180,21 @@ class SubtitleFiles(
         val named = ExternalSubtitle.languageOf(name)?.takeIf { SubtitleText.codePageFor(it) != western }
         val text = SubtitleText.decode(bytes, named ?: Locale.getDefault().language)
         val mime = ExternalSubtitle.mimeTypeOf(extension)
-        if (mime != null) {
-            val file = File(folder, "${loaded.size + 1}.$extension")
-            file.writeText(text)
-            return Copy.Done(file, mime)
+        fun writeText(ext: String, kind: String, value: String): Copy {
+            val encoded = value.toByteArray(Charsets.UTF_8)
+            if (encoded.size > ExternalSubtitle.MAX_BYTES) return Copy.Refused(L.tracksFileTooBig)
+            if (value.isBlank()) return Copy.Refused(L.tracksFileUnreadable(name))
+            val file = File(folder, "${loaded.size + 1}.$ext")
+            val part = File(folder, "${loaded.size + 1}.$ext.part")
+            try {
+                part.writeBytes(encoded)
+                if (!part.renameTo(file)) return Copy.Refused(L.tracksFileUnreadable(name))
+            } finally { part.delete() }
+            return Copy.Done(file, kind)
         }
-        if (!ExternalSubtitle.isMicroDvd(text)) {
-            return Copy.Refused(L.tracksFileVobsub)
-        }
-        val file = File(folder, "${loaded.size + 1}.srt")
-        file.writeText(ExternalSubtitle.microDvdToSrt(text, fps))
-        return Copy.Done(file, ExternalSubtitle.MIME_SUBRIP)
+        if (mime != null) return writeText(extension, mime, text)
+        if (!ExternalSubtitle.isMicroDvd(text)) return Copy.Refused(L.tracksFileVobsub)
+        return writeText("srt", ExternalSubtitle.MIME_SUBRIP, ExternalSubtitle.microDvdToSrt(text, fps))
     }
 
     private fun displayName(uri: Uri): String? = runCatching {
