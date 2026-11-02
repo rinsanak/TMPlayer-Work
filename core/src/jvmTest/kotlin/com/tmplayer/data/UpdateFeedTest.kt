@@ -109,13 +109,13 @@ class UpdateFeedTest {
     }
 
     @Test
-    fun `the site is asked first and GitHub only when it fails`() {
+    fun `the fork feed is asked first and GitHub is the fallback`() {
         val asked = mutableListOf<String>()
-        val fromSite = UpdateFeed.latest("t") { url, _ ->
+        val fromFeed = UpdateFeed.latest("t") { url, _ ->
             asked += url
             UpdateFeed.Answer(200, feed)
         }
-        assertEquals("1.20.0", fromSite.version)
+        assertEquals("1.20.0", fromFeed.version)
         assertEquals(listOf(UpdateFeed.FEED_URL), asked)
 
         asked.clear()

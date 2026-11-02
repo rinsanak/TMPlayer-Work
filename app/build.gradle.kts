@@ -95,7 +95,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.tmplayer"
+        applicationId = "com.rinsanak.tgstream"
         // Android 6. The floor is the highest minSdk among the libraries (TDLib's tdl-coroutines,
         // Media3, nextlib, Compose, AndroidX and the Cast framework all declare 23), so older TVs
         // such as the Fire TV Stick 4K on Fire OS 6 (Android 7.1) and the Android 6 and 7 boxes
@@ -112,7 +112,7 @@ android {
         // upgrade of the wrong one; nothing here goes to a store. For sideloading, equal codes are
         // what lets somebody who took the universal file swap to the arm64 one without Android
         // refusing it as a downgrade, which an offset scheme would cause in one direction.
-        val tmVersionName = (findProperty("tmVersionName") as String?) ?: "1.28.1"
+        val tmVersionName = (findProperty("tmVersionName") as String?) ?: "1.0.0"
         versionCode = (findProperty("tmVersionCode") as String?)?.toInt() ?: releaseVersionCode(tmVersionName)
         versionName = tmVersionName
 
@@ -162,7 +162,7 @@ android {
         // Donation links and the support card, all behind one switch (SupportReminder.enabled).
         // The `play` flavor planned in CP35 sets this to false: Play does not allow donation links
         // that bypass its billing.
-        buildConfigField("boolean", "SUPPORT_LINKS", "true")
+        buildConfigField("boolean", "SUPPORT_LINKS", "false")
 
         // The update check and the APK install that follows it, off in the F-Droid build (see
         // fdroidBuild above): F-Droid is what updates that build.

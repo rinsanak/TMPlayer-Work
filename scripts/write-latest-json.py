@@ -32,15 +32,15 @@ MIRROR = "https://tmplayer-download-mirror.dracu.workers.dev"
 # Feed key to the file name CI gives it: the same names release.yml checks before publishing.
 # Only what a release carries; a client finds nothing under any other key and says so.
 ASSETS = {
-    "android-universal": "TMPlayer-{v}-universal.apk",
+    "android-universal": "{prefix}-{v}-universal.apk",
     # Not "windows-x64-msi": 1.26.0 and older read that key, and their in-app update deletes the
     # sign in and settings (issue #7), so from 1.26.1 the MSI is published only under a key they
     # do not know. Their popup then sends people to the download page, and install.ps1 keeps
     # the data on the way.
-    "windows-x64-msi-v2": "TMPlayer-{v}-windows-x64.msi",
-    "macos-arm64-dmg": "TMPlayer-{v}-macos-arm64.dmg",
-    "linux-x64-appimage": "TMPlayer-{v}-x86_64.AppImage",
-    "linux-x64-tarball": "TMPlayer-{v}-linux-x64.tar.xz",
+    "windows-x64-msi-v2": "{prefix}-{v}-windows-x64.msi",
+    "macos-arm64-dmg": "{prefix}-{v}-macos-arm64.dmg",
+    "linux-x64-appimage": "{prefix}-{v}-x86_64.AppImage",
+    "linux-x64-tarball": "{prefix}-{v}-linux-x64.tar.xz",
 }
 
 DEFAULT_NOTES = "Fixes and improvements. The release page lists everything that changed."
@@ -94,6 +94,10 @@ def main():
     parser.add_argument("--from-release", help="the JSON `gh release view --json assets` printed")
     parser.add_argument("--published", help="ISO 8601 time; now when left out")
     parser.add_argument("--notes", default="", help="the tag's notes: a list of \"- \" lines, or plain sentences")
+    parser.add_argument("--repo", default=REPO, help="owner/repository used by the release link")
+    parser.add_argument("--asset-prefix", default="TMPlayer", help="prefix used in published asset names")
+    parser.add_argument("--download-base", default=f"{MIRROR}/download", help="base URL before /vX.Y.Z/asset")
+    parser.add_argument("--android-only", action="store_true", help="write only the universal Android APK entry")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
@@ -122,15 +126,16 @@ def main():
         sys.exit("Pass --dist or --from-release")
 
     assets = {}
-    for key, pattern in ASSETS.items():
-        name = pattern.format(v=version)
+    selected_assets = {"android-universal": ASSETS["android-universal"]} if args.android_only else ASSETS
+    for key, pattern in selected_assets.items():
+        name = pattern.format(v=version, prefix=args.asset_prefix)
         if name not in known:
             sys.exit(f"{name} is missing, so the feed would point at nothing")
         size, digest = known[name]
         if digest is None:
             digest = sha256(os.path.join(args.dist, name))
         assets[key] = {
-            "url": f"{MIRROR}/download/{tag}/{name}",
+            "url": f"{args.download_base.rstrip('/')}/{tag}/{name}",
             "sha256": digest,
             "size": size,
         }
@@ -143,7 +148,7 @@ def main():
         # reads this field; it is there for people and tools reading the feed.
         "versionCode": major * 1_000_000 + minor * 10_000 + patch * 100 + 99,
         "published": published,
-        "releaseUrl": f"https://github.com/{REPO}/releases/tag/{tag}",
+        "releaseUrl": f"https://github.com/{args.repo}/releases/tag/{tag}",
         "notes": popup_notes(args.notes) or DEFAULT_NOTES,
         "changes": popup_changes(args.notes),
         "assets": assets,

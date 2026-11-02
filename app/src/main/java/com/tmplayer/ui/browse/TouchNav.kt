@@ -370,6 +370,7 @@ internal fun TouchNavHost(
                             onChats = retap(TouchDestination.Chats, nav.onChats),
                             onSearch = nav.onSearch,
                             onProfile = { profileOpen = true },
+                            onUpdate = nav.onUpdate,
                             searchShared = searchShared,
                             vertical = rail,
                         )
@@ -658,6 +659,7 @@ private fun FloatingBar(
     onChats: () -> Unit,
     onSearch: () -> Unit,
     onProfile: () -> Unit,
+    onUpdate: () -> Unit,
     searchShared: Modifier,
     vertical: Boolean = false,
 ) {
@@ -750,6 +752,7 @@ private fun FloatingBar(
                 BarButton(TmIcons.Chats, s.browseTabChats, current == TouchDestination.Chats, onChats)
                 BarButton(TmIcons.Search, s.commonSearch, false, onSearch, role = Role.Button, modifier = searchShared)
                 ProfileButton(account, inProfile, badged, onProfile)
+                BarButton(TmIcons.Refresh, s.navUpdate, false, onUpdate, role = Role.Button)
             }
             if (vertical) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(BAR_SPACING)) { buttons() }

@@ -1888,7 +1888,10 @@ private fun Root() {
                 scope.launch { settings.setHistoryTab(tab.name) }
                 browseTo(BrowseSection.of(BrowseTab.History))
             },
-            onUpdate = { showUpdate = true },
+            onUpdate = {
+                showUpdate = true
+                if (updateState.release == null) scope.launch { updates.checkNow() }
+            },
         )
 
         // The television's top bar over Downloads, as it is over the browser's pages. Settings has
@@ -1931,7 +1934,10 @@ private fun Root() {
                     onReturnedToRail = { railReturn = null },
                     downloadCount = activeDownloadCount,
                     updateVersion = offeredUpdate,
-                    onUpdate = { showUpdate = true },
+                    onUpdate = {
+                showUpdate = true
+                if (updateState.release == null) scope.launch { updates.checkNow() }
+            },
                     onToggleFavorite = { chat ->
                         scope.launch {
                             // Not said either way: the star fills or empties, and in the

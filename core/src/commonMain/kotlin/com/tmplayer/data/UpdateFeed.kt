@@ -59,8 +59,8 @@ data class Release(
  */
 object UpdateFeed {
 
-    const val FEED_URL = "https://tmplayer.org/latest.json"
-    private const val REPO = "dracu-lah/TMPlayer"
+    const val FEED_URL = "https://github.com/rinsanak/TMPlayer-Work/releases/latest/download/latest.json"
+    private const val REPO = "rinsanak/TMPlayer-Work"
     private const val GITHUB_LATEST = "https://api.github.com/repos/$REPO/releases/latest"
 
     /** The newest releases, pre-releases included (and drafts, which only the owner is shown). */
@@ -76,13 +76,15 @@ object UpdateFeed {
      */
     fun latest(userAgent: String, get: (url: String, headers: Map<String, String>) -> Answer = ::httpGet): Release {
         val headers = mapOf("User-Agent" to userAgent)
-        val fromSite = runCatching {
-            val answer = get(FEED_URL, headers)
-            if (answer.code !in 200..299) throw UpdateFailure(L.updateSiteAnswered(answer.code.toString()))
-            parseFeed(answer.body) ?: throw UpdateFailure(L.updateSiteUnreadable)
+        if (FEED_URL.isNotBlank()) {
+            val fromSite = runCatching {
+                val answer = get(FEED_URL, headers)
+                if (answer.code !in 200..299) throw UpdateFailure(L.updateSiteAnswered(answer.code.toString()))
+                parseFeed(answer.body) ?: throw UpdateFailure(L.updateSiteUnreadable)
+            }
+            fromSite.getOrNull()?.let { return it }
+            Logger.w(TAG, "Update feed unavailable, asking GitHub: ${fromSite.exceptionOrNull()?.message}")
         }
-        fromSite.getOrNull()?.let { return it }
-        Logger.w(TAG, "Update feed unavailable, asking GitHub: ${fromSite.exceptionOrNull()?.message}")
 
         return parseGitHub(askGitHub(GITHUB_LATEST, headers, get)) ?: throw UpdateFailure(L.updateNoVersion)
     }

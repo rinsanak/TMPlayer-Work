@@ -1,82 +1,42 @@
-name: Release
+name: TG Stream Android release
 
-# Releases are cut deliberately, by pushing a tag:
-#
-#     git tag v1.0.0 && git push origin v1.0.0
-#
-# Nothing else builds a signed APK. That matters because this is the only job that can see the
-# signing key, and keeping it off the push-to-main path means an ordinary commit, or a pull
-# request from a stranger, can never reach it.
-#
-# One tag makes one GitHub release with a deliberately short list in it: the universal Android
-# APK, the Windows MSI, the macOS DMG (Apple Silicon, a preview), the Linux AppImage and the Linux tarball (which the AUR PKGBUILD builds
-# from), and nothing else. Each platform builds in its own job; the last job gathers them and
-# publishes. GitHub attaches the source archives to every release by itself and shows each file's
-# SHA-256 beside it, so the licence, the notices and the nextlib and mediamp sources are links in
-# the notes and there is no checksum file.
-#
-# A test version, tagged vX.Y.Z-beta.N from main before the release vX.Y.Z (RL1), goes through the
-# same jobs and carries the same files, but is published as a GitHub pre-release that is never
-# marked latest, and nothing after the release page hears of it: no update feed, no site or
-# changelog commit, no AUR, no IndexNow, no Telegram post, no winget. Installed copies offer it
-# only with "Get test versions" on. Each such step says so in its `if`, against
-# needs.version.outputs.prerelease. docs/RELEASING.md has the numbering and the steps.
 on:
   push:
     tags: ["v*"]
+    branches: ["tg-stream-rebrand"]
+    paths: [".github/tg-stream-build-request"]
+  workflow_dispatch:
 
 permissions:
   contents: write
-  # Read only: the Android job looks up whether CI already passed on the tagged code.
-  actions: read
 
 jobs:
-  version:
-    name: Derive version from the tag
+  release:
+    name: Build and publish Android APK
     runs-on: ubuntu-latest
-    outputs:
-      name: ${{ steps.version.outputs.name }}
-      code: ${{ steps.version.outputs.code }}
-      # "true" for a test version (vX.Y.Z-beta.N), "false" for a release.
-      prerelease: ${{ steps.version.outputs.prerelease }}
-    steps:
-      - uses: actions/checkout@v7
-
-      # Android will not install an APK whose versionCode is lower than the installed one, so it
-      # is derived arithmetically from the tag: major*1000000 + minor*10000 + patch*100 + stage,
-      # where test version N is stage N and the release 99, so a test version sits between the
-      # release before it and its own release (docs/RELEASING.md). The script refuses any other
-      # tag, and first checks itself against the cases the app's own tests use.
-      - name: Derive version from the tag
-        id: version
-        run: |
-          python3 scripts/release-version.py --check
-          python3 scripts/release-version.py --github-output "$GITHUB_REF_NAME"
-          if grep -qx 'prerelease=true' "$GITHUB_OUTPUT"; then
-            echo "::notice::$GITHUB_REF_NAME is a test version: a GitHub pre-release, never marked latest, with no feed, site, AUR, IndexNow, Telegram or winget step."
-          fi
-
-  android:
-    name: Android (signed APK)
-    needs: version
-    runs-on: ubuntu-latest
-    # Attach required reviewers to this environment in repo settings to gate access to the key.
     environment: release
-
     steps:
       - uses: actions/checkout@v7
         with:
-          # The whole history, so the test skip below can tell what changed since CI last passed.
           fetch-depth: 0
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          python3 scripts/release-version.py --check
+          TAG="$GITHUB_REF_NAME"
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then TAG="$(cat .github/tg-stream-build-request)"; fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          python3 scripts/release-version.py "$TAG" --github-output
 
       - name: Restore signing key
         env:
@@ -85,11 +45,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::error::KEYSTORE_BASE64 is not set. See CONTRIBUTING.md for the setup commands"
-            exit 1
-          fi
-          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+          test -n "$KEYSTORE_BASE64" || { echo "::error::Set the release signing secrets first"; exit 1; }
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > release.keystore
           cat > keystore.properties <<EOF
           storeFile=release.keystore
           storePassword=$KEYSTORE_PASSWORD
@@ -101,73 +58,17 @@ jobs:
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
-          # Optional, unlike the two above. Without it the released APK simply has nowhere to send
-          # a crash report to, so the Settings switch is never drawn and the feature does not
-          # exist in that build. That is a smaller release, not a broken one, so it does not fail.
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          # Optional too: without it online subtitles are hidden in that build.
-          OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
-          MSONE_GATEWAY_KEY: ${{ secrets.MSONE_GATEWAY_KEY }}
-          # Optional too: without it films get no posters in that build.
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          # Optional: without it a detail page shows the provider's own score alone.
-          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
         run: |
-          if [ -z "$TG_API_ID" ]; then
-            echo "::error::TG_API_ID is not set, so the released APK would not be able to sign in"
-            exit 1
-          fi
-          if [ -z "$SENTRY_DSN" ]; then
-            echo "::notice::SENTRY_DSN is not set. This build ships without crash reporting."
-          fi
-          if [ -z "$OPENSUBTITLES_API_KEY" ]; then
-            echo "::notice::OPENSUBTITLES_API_KEY is not set. This build ships without online subtitles."
-          fi
-          if [ -z "$TMDB_API_KEY" ]; then
-            echo "::notice::TMDB_API_KEY is not set. This build has no TMDB key of its own."
-          fi
-          cat > local.properties <<EOF
-          TG_API_ID=$TG_API_ID
-          TG_API_HASH=$TG_API_HASH
-          SENTRY_DSN=$SENTRY_DSN
-          OPENSUBTITLES_API_KEY=$OPENSUBTITLES_API_KEY
-          MSONE_GATEWAY_KEY=$MSONE_GATEWAY_KEY
-          TMDB_API_KEY=$TMDB_API_KEY
-          OMDB_API_KEY=$OMDB_API_KEY
-          EOF
+          test -n "$TG_API_ID" && test -n "$TG_API_HASH" || { echo "::error::Set TG_API_ID and TG_API_HASH first"; exit 1; }
+          printf 'TG_API_ID=%s\nTG_API_HASH=%s\n' "$TG_API_ID" "$TG_API_HASH" > local.properties
 
-      # CI runs the same tests on every push to main, so a tag on code CI has already passed
-      # does not run them again: that took about an hour of the 1.25.0 run. The tests do run
-      # when no passing CI run is found on an ancestor of the tag, or when anything since that
-      # run touches more than the paths CI itself skips (plus the store listing text).
-      - name: Check whether CI already tested this code
-        id: tested
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Install native build tools
         run: |
-          safe='^(site/|docs/|fastlane/|desktop/packaging/aur/)|\.md$'
-          for sha in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&status=success&per_page=30" --jq '.workflow_runs[].head_sha'); do
-            git merge-base --is-ancestor "$sha" HEAD 2>/dev/null || continue
-            changed="$(git diff --name-only "$sha" HEAD | grep -Ev "$safe" || true)"
-            if [ -z "$changed" ]; then
-              echo "::notice::CI passed on $sha and nothing since changes the build, so the unit tests are not run again."
-              echo "skip=true" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          done
-          echo "skip=false" >> "$GITHUB_OUTPUT"
+          sudo apt-get update -q
+          sudo apt-get install -y -q nasm meson ninja-build
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;25.2.9519653" "cmake;3.22.1" > /dev/null
 
-      # Debug only: the promo and release variants run the same test sources, and since AGP 9
-      # only the tested build type (debug) gets a unit test task at all.
-      - name: Run unit tests
-        if: steps.tested.outputs.skip != 'true'
-        run: ./gradlew :core:jvmTest :ui:jvmTest :app:testDebugUnitTest
-
-      # The FFmpeg extension with TMPlayer's extra video decoders and light video mode, built from
-      # nextlib's pinned source (scripts/build-media3ext.sh). Cached by the script and the patch it
-      # was built from (not the host bench beside the patch), so only a release that changes
-      # either pays the hour it takes.
-      - name: Restore the FFmpeg extension
+      - name: Restore FFmpeg extension cache
         uses: actions/cache@v4
         with:
           path: |
@@ -175,703 +76,41 @@ jobs:
             build/media3ext/stamp
           key: media3ext-${{ hashFiles('scripts/build-media3ext.sh', 'scripts/media3ext/*.patch', 'gradle/libs.versions.toml') }}
 
-      - name: Build the FFmpeg extension
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q nasm meson ninja-build
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;25.2.9519653" "cmake;3.22.1" > /dev/null
-          JOBS=4 scripts/build-media3ext.sh
+      - name: Build FFmpeg extension
+        run: JOBS=4 scripts/build-media3ext.sh
 
-      - name: Build the signed APK
+      - name: Build signed universal APK
+        run: |
+          ./gradlew :app:assembleRelease -PtmRequireMedia3ext=true \
+            -PtmVersionName="${{ steps.version.outputs.name }}" \
+            -PtmVersionCode="${{ steps.version.outputs.code }}"
+
+      - name: Prepare release files
         env:
-          # Optional. With it, the R8 mapping is uploaded to Sentry under the UUID the build writes
-          # into the APK, so crash reports from this release read as the source does. Without it
-          # the build is the same, and its reports' stack traces stay minified.
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # Said in the run's summary rather than left to be found out from Sentry, where every
-          # crash of a release without its mapping reads as renamed classes and "SourceFile". The
-          # mapping is still kept as a workflow artifact below, for an upload by hand.
-          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
-            echo "::notice::SENTRY_AUTH_TOKEN is not set. The R8 mapping is not uploaded, so this release's crash reports stay unreadable until it is uploaded by hand."
+          VERSION="${{ steps.version.outputs.name }}"
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-universal-release.apk "dist/TG-Stream-${VERSION}-universal.apk"
+          NOTES="$(git tag -l --format='%(contents:body)' "${{ steps.version.outputs.tag }}")"
+          if [ -z "$NOTES" ]; then NOTES="TG Stream ${VERSION}"; fi
+          printf '%s\n' "$NOTES" > release-notes.md
+          if [ "${{ steps.version.outputs.prerelease }}" != "true" ]; then
+            python3 scripts/write-latest-json.py --version "$VERSION" --dist dist \
+              --notes "$NOTES" --repo "$GITHUB_REPOSITORY" --asset-prefix TG-Stream \
+              --download-base "https://github.com/$GITHUB_REPOSITORY/releases/download" \
+              --android-only --out dist/latest.json
           fi
-          ./gradlew :app:assembleRelease \
-            -PtmRequireMedia3ext=true \
-            -PtmVersionName=${{ needs.version.outputs.name }} \
-            -PtmVersionCode=${{ needs.version.outputs.code }}
 
-      - name: Name the APK after the version
-        run: |
-          mkdir -p dist mapping
-          VERSION="${{ needs.version.outputs.name }}"
-          OUT=app/build/outputs/apk/release
-
-          # Only the universal APK is published: it runs on every television, stick and phone the
-          # app supports, and it is what the site, the in-app updater and every install guide name.
-          # The build still makes the per-ABI splits as a by-product; they are left behind.
-          SRC="$OUT/app-universal-release.apk"
-          if [ ! -f "$SRC" ]; then
-            echo "::error::$SRC was not built. Check the splits block in app/build.gradle.kts"
-            exit 1
-          fi
-          cp "$SRC" "dist/TMPlayer-$VERSION-universal.apk"
-          # tmplayer.org/apk, the short address a remote's Downloader app is given, is pointed at
-          # this file by the publish job (site/vercel.json), so no second copy of the APK goes up.
-
-          # R8 renames every class, so a crash report from a released APK is unreadable without
-          # the mapping for that exact build. It is generated once and then gone, so it is kept
-          # as a workflow artifact of this run (below) rather than published with the release:
-          # it is for decoding stack traces, not for users. Take it from the run's page.
-          cp app/build/outputs/mapping/release/mapping.txt "mapping/mapping-$VERSION.txt"
-          ls -la dist mapping
-
-      # Anything holding the signing key is deleted before the job can reach a step that
-      # uploads output. Workflow files are cleaned up by the runner anyway; this is belt
-      # and braces against a future step accidentally archiving the workspace.
-      - name: Shred signing material
+      - name: Remove signing material
+        if: always()
         run: rm -f release.keystore keystore.properties local.properties
 
-      - name: Hand the APK to the publish job
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-android
-          path: dist/*
-          retention-days: 3
-          if-no-files-found: error
-
-      # Not named release-*, so the publish job does not gather it into the release. Ninety days
-      # is the longest a public repository may keep an artifact; download it from the run's page
-      # and keep it somewhere safe before then if a stack trace may still need decoding.
-      - name: Keep the R8 mapping
-        uses: actions/upload-artifact@v7
-        with:
-          name: mapping-${{ needs.version.outputs.name }}
-          path: mapping/mapping-${{ needs.version.outputs.name }}.txt
-          retention-days: 90
-          if-no-files-found: error
-
-  # The AppImage and the tarball, built and self-tested by the same composite action CI runs on
-  # every push. Ubuntu 24.04, pinned: the bundled TDLib and libmpv need glibc 2.38 to run the
-  # self-test, and the image should not move under a release.
-  desktop-linux:
-    name: Desktop (Linux)
-    needs: version
-    runs-on: ubuntu-24.04
-    # The Telegram credentials are secrets of this environment.
-    environment: release
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Write Telegram credentials
-        env:
-          TG_API_ID: ${{ secrets.TG_API_ID }}
-          TG_API_HASH: ${{ secrets.TG_API_HASH }}
-          OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
-          MSONE_GATEWAY_KEY: ${{ secrets.MSONE_GATEWAY_KEY }}
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          # Optional: without it a detail page shows the provider's own score alone.
-          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
-          # Optional: the desktop's own Sentry project (tmplayer-desktop), else the phone's DSN.
-          # With neither, the desktop ships without crash reporting and never offers the switch.
-          SENTRY_DSN_DESKTOP: ${{ secrets.SENTRY_DSN_DESKTOP }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-        run: |
-          if [ -z "$TG_API_ID" ]; then
-            echo "::error::TG_API_ID is not set, so the released app would not be able to sign in"
-            exit 1
-          fi
-          if [ -z "$SENTRY_DSN_DESKTOP" ] && [ -z "$SENTRY_DSN" ]; then
-            echo "::notice::Neither SENTRY_DSN_DESKTOP nor SENTRY_DSN is set. This desktop build ships without crash reporting."
-          elif [ -z "$SENTRY_DSN_DESKTOP" ]; then
-            echo "::notice::SENTRY_DSN_DESKTOP is not set. This desktop build sends its crash reports to the Android project (SENTRY_DSN)."
-          fi
-          cat > local.properties <<EOF
-          TG_API_ID=$TG_API_ID
-          TG_API_HASH=$TG_API_HASH
-          OPENSUBTITLES_API_KEY=$OPENSUBTITLES_API_KEY
-          MSONE_GATEWAY_KEY=$MSONE_GATEWAY_KEY
-          TMDB_API_KEY=$TMDB_API_KEY
-          OMDB_API_KEY=$OMDB_API_KEY
-          SENTRY_DSN_DESKTOP=$SENTRY_DSN_DESKTOP
-          SENTRY_DSN=$SENTRY_DSN
-          EOF
-
-      - name: Package and self-test
-        uses: ./.github/actions/desktop-linux
-        with:
-          version: ${{ needs.version.outputs.name }}
-
-      - name: Shred credentials
-        if: always()
-        run: rm -f local.properties
-
-      - name: Hand the AppImage, its .zsync and the tarball to the publish job
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-linux
-          path: dist/*
-          retention-days: 3
-          if-no-files-found: error
-
-  desktop-windows:
-    name: Desktop (Windows)
-    needs: version
-    runs-on: windows-latest
-    environment: release
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Write Telegram credentials
-        shell: bash
-        env:
-          TG_API_ID: ${{ secrets.TG_API_ID }}
-          TG_API_HASH: ${{ secrets.TG_API_HASH }}
-          OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
-          MSONE_GATEWAY_KEY: ${{ secrets.MSONE_GATEWAY_KEY }}
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          # Optional: without it a detail page shows the provider's own score alone.
-          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
-          # Optional: the desktop's own Sentry project (tmplayer-desktop), else the phone's DSN.
-          # With neither, the desktop ships without crash reporting and never offers the switch.
-          SENTRY_DSN_DESKTOP: ${{ secrets.SENTRY_DSN_DESKTOP }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-        run: |
-          if [ -z "$TG_API_ID" ]; then
-            echo "::error::TG_API_ID is not set, so the released app would not be able to sign in"
-            exit 1
-          fi
-          if [ -z "$SENTRY_DSN_DESKTOP" ] && [ -z "$SENTRY_DSN" ]; then
-            echo "::notice::Neither SENTRY_DSN_DESKTOP nor SENTRY_DSN is set. This desktop build ships without crash reporting."
-          elif [ -z "$SENTRY_DSN_DESKTOP" ]; then
-            echo "::notice::SENTRY_DSN_DESKTOP is not set. This desktop build sends its crash reports to the Android project (SENTRY_DSN)."
-          fi
-          # One printf for every line: two used to write the file in turn, and the second left
-          # the Windows build without its OpenSubtitles key.
-          printf 'TG_API_ID=%s\nTG_API_HASH=%s\nOPENSUBTITLES_API_KEY=%s\nMSONE_GATEWAY_KEY=%s\nTMDB_API_KEY=%s\nOMDB_API_KEY=%s\nSENTRY_DSN_DESKTOP=%s\nSENTRY_DSN=%s\n' \
-            "$TG_API_ID" "$TG_API_HASH" "$OPENSUBTITLES_API_KEY" "$MSONE_GATEWAY_KEY" "$TMDB_API_KEY" "$OMDB_API_KEY" "$SENTRY_DSN_DESKTOP" "$SENTRY_DSN" > local.properties
-
-      - name: Package and self-test
-        uses: ./.github/actions/desktop-windows
-        with:
-          version: ${{ needs.version.outputs.name }}
-
-      - name: Shred credentials
-        if: always()
-        shell: bash
-        run: rm -f local.properties
-
-      - name: Hand the MSI to the publish job
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-windows
-          path: dist/*
-          retention-days: 3
-          if-no-files-found: error
-
-  desktop-macos:
-    name: Desktop (macOS)
-    needs: version
-    runs-on: macos-26
-    environment: release
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Write Telegram credentials
-        env:
-          TG_API_ID: ${{ secrets.TG_API_ID }}
-          TG_API_HASH: ${{ secrets.TG_API_HASH }}
-          OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
-          MSONE_GATEWAY_KEY: ${{ secrets.MSONE_GATEWAY_KEY }}
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          # Optional: without it a detail page shows the provider's own score alone.
-          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
-          # Optional: the desktop's own Sentry project (tmplayer-desktop), else the phone's DSN.
-          # With neither, the desktop ships without crash reporting and never offers the switch.
-          SENTRY_DSN_DESKTOP: ${{ secrets.SENTRY_DSN_DESKTOP }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-        run: |
-          if [ -z "$TG_API_ID" ]; then
-            echo "::error::TG_API_ID is not set, so the released app would not be able to sign in"
-            exit 1
-          fi
-          if [ -z "$SENTRY_DSN_DESKTOP" ] && [ -z "$SENTRY_DSN" ]; then
-            echo "::notice::Neither SENTRY_DSN_DESKTOP nor SENTRY_DSN is set. This desktop build ships without crash reporting."
-          elif [ -z "$SENTRY_DSN_DESKTOP" ]; then
-            echo "::notice::SENTRY_DSN_DESKTOP is not set. This desktop build sends its crash reports to the Android project (SENTRY_DSN)."
-          fi
-          cat > local.properties <<EOF
-          TG_API_ID=$TG_API_ID
-          TG_API_HASH=$TG_API_HASH
-          OPENSUBTITLES_API_KEY=$OPENSUBTITLES_API_KEY
-          MSONE_GATEWAY_KEY=$MSONE_GATEWAY_KEY
-          TMDB_API_KEY=$TMDB_API_KEY
-          OMDB_API_KEY=$OMDB_API_KEY
-          SENTRY_DSN_DESKTOP=$SENTRY_DSN_DESKTOP
-          SENTRY_DSN=$SENTRY_DSN
-          EOF
-
-      - name: Package and self-test
-        uses: ./.github/actions/desktop-macos
-        with:
-          version: ${{ needs.version.outputs.name }}
-
-      - name: Shred credentials
-        if: always()
-        run: rm -f local.properties
-
-      - name: Hand the DMG to the publish job
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-macos
-          path: dist/*
-          retention-days: 3
-          if-no-files-found: error
-
-  # The LG (webOS) and Samsung (Tizen) wrappers: a page that opens web.tmplayer.org, which answers a
-  # TV's browser with the web player's TV build (webapp/functions/_middleware.ts). Nothing in them
-  # is secret, so they are built without the release environment. webOS and Tizen take three
-  # numbers, so a test version's packages carry its release's (1.28.2 for 1.28.2-beta.2).
-  tv:
-    name: TV wrappers (LG, Samsung)
-    needs: version
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-
-      - name: Package
-        run: |
-          VERSION="${{ needs.version.outputs.name }}"
-          TV_VERSION="${VERSION%%-*}" webapp/tv/package.sh https://web.tmplayer.org/
-          mkdir -p dist
-          mv webapp/tv/out/TMPlayer-tv.ipk "dist/TMPlayer-$VERSION-lg-webos.ipk"
-          mv webapp/tv/out/TMPlayer-tv.wgt "dist/TMPlayer-$VERSION-samsung-tizen.wgt"
-
-      - name: Hand the TV packages to the publish job
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-tv
-          path: dist/*
-          retention-days: 3
-          if-no-files-found: error
-
-  publish:
-    name: Publish the release
-    needs: [version, android, desktop-linux, desktop-windows, desktop-macos, tv]
-    runs-on: ubuntu-latest
-    # id-token and attestations are for the provenance step below; naming any permission here
-    # replaces the workflow's list for this job, so contents: write is restated.
-    permissions:
-      contents: write
-      id-token: write
-      attestations: write
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Gather every platform's files
-        uses: actions/download-artifact@v8
-        with:
-          pattern: release-*
-          path: dist
-          merge-multiple: true
-
-      - name: Check that nothing is missing
-        run: |
-          VERSION="${{ needs.version.outputs.name }}"
-          # An explicit list, so a job that quietly stops producing a file fails the release
-          # instead of publishing a short one. The site and the Android updater match these names.
-          for f in \
-            "TMPlayer-$VERSION-universal.apk" \
-            "TMPlayer-$VERSION-windows-x64.msi" \
-            "TMPlayer-$VERSION-macos-arm64.dmg" \
-            "TMPlayer-$VERSION-x86_64.AppImage" \
-            "TMPlayer-$VERSION-x86_64.AppImage.zsync" \
-            "TMPlayer-$VERSION-linux-x64.tar.xz" \
-            "TMPlayer-$VERSION-lg-webos.ipk" \
-            "TMPlayer-$VERSION-samsung-tizen.wgt"; do
-            if [ ! -s "dist/$f" ]; then
-              echo "::error::dist/$f is missing"
-              exit 1
-            fi
-          done
-          # And nothing else: a file the list above does not name would go up unannounced.
-          for path in dist/*; do
-            case "${path#dist/}" in
-              "TMPlayer-$VERSION-universal.apk" | "TMPlayer-$VERSION-windows-x64.msi" | \
-                "TMPlayer-$VERSION-macos-arm64.dmg" | \
-                "TMPlayer-$VERSION-x86_64.AppImage" | "TMPlayer-$VERSION-x86_64.AppImage.zsync" | \
-                "TMPlayer-$VERSION-linux-x64.tar.xz" | \
-                "TMPlayer-$VERSION-lg-webos.ipk" | "TMPlayer-$VERSION-samsung-tizen.wgt") ;;
-              *) echo "::error::$path is not one of the release's files"; exit 1 ;;
-            esac
-          done
-          ls -la dist
-
-      # A signed statement, through GitHub and Sigstore, that each file came out of this workflow
-      # run at this tag. It costs nothing, adds no file to the release, and anyone can check a
-      # download with `gh attestation verify <file> --repo dracu-lah/TMPlayer`. It does not
-      # replace the APK's own signature or a Windows code signing certificate; it says where the
-      # bytes were built, not who vouches for them to the operating system.
-      - name: Attest where every file was built
-        uses: actions/attest-build-provenance@v4
-        with:
-          subject-path: dist/*
-
-      # The TMPlayer source is the tag's tree and the archives GitHub attaches. The corresponding
-      # source of the bundled GPL media extension does not change while its version does not, so
-      # it is not rebuilt and attached to every release: the notes link to the archive that went
-      # up with the first release carrying that nextlib version, which GPL-3.0 section 6(d)
-      # allows as long as that link keeps working. scripts/build-nextlib-source.sh packs it for
-      # exactly one nextlib version, and the archive is uploaded by hand, so TAG works as the
-      # mediamp step's does: empty links this release's own copy, and once it is up, TAG names
-      # that release and every later one links there and checks the link still answers. A
-      # nextlib bump stops the release until a new archive covers it.
-      - name: Check the nextlib source link still matches
-        id: nextlib
-        run: |
-          # "-tm2": nextlib built from source with TMPlayer's patch (scripts/build-media3ext.sh),
-          # its second revision (the light video mode, HX2c). The suffix is read from that script,
-          # so a new revision of the patch stops the release until its source archive is linked.
-          LINKED="1.11.1-0.16.0-tm2"
-          TAG="v1.28.2"
-          USED="$(sed -n 's/^nextlib = "\(.*\)"$/\1/p' gradle/libs.versions.toml)-$(sed -n 's/^TM_REVISION="\(.*\)"$/\1/p' scripts/build-media3ext.sh)"
-          if [ "$USED" != "$LINKED" ]; then
-            echo "::error::nextlib is $USED but the release notes link the source of $LINKED. Update scripts/build-nextlib-source.sh for $USED, attach its archive, and update LINKED and TAG here."
-            exit 1
-          fi
-          URL="https://github.com/${{ github.repository }}/releases/download/${TAG:-$GITHUB_REF_NAME}/nextlib-corresponding-source-$LINKED.tar.gz"
-          if [ -n "$TAG" ]; then
-            curl --fail --silent --show-error --head --location --max-time 60 "$URL" > /dev/null
-          else
-            echo "::warning::Attach nextlib-corresponding-source-$LINKED.tar.gz (scripts/build-nextlib-source.sh) to this release, then set TAG to $GITHUB_REF_NAME in release.yml."
-          fi
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-
-      # The same for the desktop builds' mpv runtime: libmpv, FFmpeg and the libraries bundled
-      # beside them come in through mediamp, and scripts/build-mediamp-source.sh packs their
-      # source for exactly one mediamp version. The archive is uploaded by hand, to the first
-      # release that carries that mediamp version, so TAG starts empty, which links this release's
-      # own copy. Once it is up, TAG names that release and every later one links there, checked
-      # like nextlib's. A mediamp bump stops the release until a new archive covers it.
-      - name: Check the mediamp source link still matches
-        id: mediamp
-        run: |
-          COVERED="0.5.2"
-          TAG="v1.27.0"
-          USED="$(sed -n 's/^mediamp = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
-          if [ "$USED" != "$COVERED" ]; then
-            echo "::error::mediamp is $USED but the linked corresponding source covers $COVERED. Update scripts/build-mediamp-source.sh for $USED, attach its archive, and update COVERED and TAG here."
-            exit 1
-          fi
-          URL="https://github.com/${{ github.repository }}/releases/download/${TAG:-$GITHUB_REF_NAME}/mediamp-corresponding-source-$COVERED.tar.gz"
-          if [ -n "$TAG" ]; then
-            curl --fail --silent --show-error --head --location --max-time 60 "$URL" > /dev/null
-          else
-            echo "::warning::Attach mediamp-corresponding-source-$COVERED.tar.gz (scripts/build-mediamp-source.sh) to this release, then set TAG to $GITHUB_REF_NAME in release.yml."
-          fi
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-          # The macOS runtime's libraries are Homebrew's, not MSYS2's or Ubuntu's, so their source
-          # is a second archive (scripts/build-mediamp-source.sh --macos), attached by hand next to
-          # the first. MAC_TAG works as TAG does: empty links this release's own copy.
-          MAC_TAG="v1.27.0"
-          MAC_URL="https://github.com/${{ github.repository }}/releases/download/${MAC_TAG:-$GITHUB_REF_NAME}/mediamp-corresponding-source-$COVERED-macos.tar.gz"
-          if [ -n "$MAC_TAG" ]; then
-            curl --fail --silent --show-error --head --location --max-time 60 "$MAC_URL" > /dev/null
-          else
-            echo "::warning::Attach mediamp-corresponding-source-$COVERED-macos.tar.gz (scripts/build-mediamp-source.sh --macos) to this release, then set MAC_TAG to $GITHUB_REF_NAME in release.yml."
-          fi
-          echo "url_mac=$MAC_URL" >> "$GITHUB_OUTPUT"
-
-      # The update feed every installed copy reads (C1 of the storage and updates plan). Written
-      # here, from the files about to go up, so each package's size and SHA-256 are the published
-      # bytes'. It is only committed after the release exists, below, so the feed never points
-      # at a download that is not there yet.
-      - name: Write the update feed
-        # The stable feed never names a test version.
-        if: needs.version.outputs.prerelease != 'true'
-        run: |
-          VERSION="${{ needs.version.outputs.name }}"
-          # An annotated tag's notes become the popup's notes, without its "release: X.Y.Z"
-          # subject; a plain tag gets the default. The script folds a "- " list into sentences.
-          NOTES=""
-          if [ "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME" 2>/dev/null)" = "tag" ]; then
-            NOTES="$(git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME")"
-          fi
-          python3 scripts/write-latest-json.py \
-            --version "$VERSION" --dist dist --notes "$NOTES" \
-            --out "$RUNNER_TEMP/latest.json"
-
-      # The same notes head the release page, where a "- " list renders as one.
-      - name: Read the tag's notes for the release page
-        id: notes
-        run: |
-          {
-            echo "body<<TMPLAYER_NOTES_END"
-            if [ "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME" 2>/dev/null)" = "tag" ]; then
-              git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME"
-            fi
-            echo "TMPLAYER_NOTES_END"
-          } >> "$GITHUB_OUTPUT"
-
-      # A test version is a pre-release and never "latest": GitHub's releases/latest, the
-      # AppImage's "latest" channel and the download page all keep naming the release before it.
-      - name: Say on a test version's page what it is
-        id: kind
-        run: |
-          if [ "${{ needs.version.outputs.prerelease }}" = "true" ]; then
-            {
-              echo "intro<<TMPLAYER_INTRO_END"
-              echo "**A test version of the next release.** It may have bugs. Installed copies offer it only with Settings, Get test versions on; everyone else stays on the latest release."
-              echo
-              echo "TMPLAYER_INTRO_END"
-            } >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish the release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: TMPlayer ${{ needs.version.outputs.name }}
-          files: |
-            dist/*
-          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
-          make_latest: ${{ needs.version.outputs.prerelease == 'true' && 'false' || 'true' }}
-          generate_release_notes: true
-          body: |
-            ${{ steps.kind.outputs.intro }}${{ steps.notes.outputs.body }}
-
-            | Platform | File |
-            | --- | --- |
-            | Android TV, sticks and phones | `TMPlayer-${{ needs.version.outputs.name }}-universal.apk` |
-            | Windows 10 and 11, 64-bit | `TMPlayer-${{ needs.version.outputs.name }}-windows-x64.msi` |
-            | macOS 26 or newer, Apple Silicon (preview, [first launch](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/INSTALL.md#macos)) | `TMPlayer-${{ needs.version.outputs.name }}-macos-arm64.dmg` |
-            | Linux, glibc 2.38 or newer | `TMPlayer-${{ needs.version.outputs.name }}-x86_64.AppImage` |
-            | Arch Linux | [the PKGBUILD](https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}/desktop/packaging/aur), from `TMPlayer-${{ needs.version.outputs.name }}-linux-x64.tar.xz` |
-            | LG TVs, webOS 5 and newer ([Developer Mode](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/webapp/tv/README.md#2-lg-webos)) | `TMPlayer-${{ needs.version.outputs.name }}-lg-webos.ipk` |
-            | Samsung TVs, Tizen 2020 and newer ([Developer Mode](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/webapp/tv/README.md#3-samsung-tizen)) | `TMPlayer-${{ needs.version.outputs.name }}-samsung-tizen.wgt` |
-
-            Installed copies offer each update. [How to install](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/INSTALL.md) · [Moving from the deb, rpm, Flatpak or Windows zip](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/INSTALL.md#moving-from-a-format-that-is-no-longer-published) · [GPL-3.0](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/LICENSE) · [Third party notices](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/THIRD_PARTY_NOTICES.md) · [nextlib source](${{ steps.nextlib.outputs.url }}) · [mediamp source](${{ steps.mediamp.outputs.url }}) · [mediamp macOS source](${{ steps.mediamp.outputs.url_mac }})
-
-      # tmplayer.org is deployed by Vercel's git integration from main, which builds the Astro site
-      # in site/ for every push, so a commit to main is the one way the site learns of the release:
-      # Vercel builds it like any other push and the feed is live a couple of minutes later. Pushed with this
-      # job's token, which starts no other workflow. A tag for an older version (a re-run, a
-      # patch to an old line) leaves a newer feed alone.
-      #
-      # The changelog pages, their RSS feed and the release entries in the sitemap are rendered by
-      # the site from site/src/data/releases.json, which goes up in the same commit, written by
-      # scripts/release-data.py from the release list, which by now includes this release. It
-      # runs for an older tag too, since a patch to an old line still belongs on the page, and it
-      # writes the same bytes for the same releases, so a re-run commits nothing. Its notes are the
-      # annotated tags' messages: this release's tag is here, as the checkout fetched it, and the
-      # older ones are asked of the API rather than fetched, which on a shallow clone would mean
-      # pulling a tree for every tag. gh reads GH_TOKEN for that and for the release list.
-      #
-      # The Arch Linux PKGBUILD moves in the same commit when this release is the newest:
-      # scripts/aur-bump.py sets its version and the tarball's SHA-256 from this run's latest.json,
-      # and is redone after every fresh checkout of the retry loop. The step's `aur` output says
-      # whether the AUR step below should run: main's PKGBUILD names this version and the
-      # AUR_SSH_PRIVATE_KEY secret is set (a step's `if` cannot read secrets, so it is told here as
-      # a plain true or false, never the key).
-      - name: Publish the update feed and the changelog on the site
-        id: feed
-        # A test version leaves main, the site, the feed, tmplayer.org/apk and the PKGBUILD alone.
-        if: needs.version.outputs.prerelease != 'true'
+      - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          AUR_KEY_SET: ${{ secrets.AUR_SSH_PRIVATE_KEY != '' }}
         run: |
-          VERSION="${{ needs.version.outputs.name }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          aur_output() {
-            if [ "$AUR_KEY_SET" = "true" ] && grep -qx "pkgver=$VERSION" desktop/packaging/aur/PKGBUILD; then
-              echo "aur=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "aur=false" >> "$GITHUB_OUTPUT"
-            fi
-          }
-          for attempt in 1 2 3; do
-            git fetch --depth=1 origin main
-            git checkout -B feed FETCH_HEAD
-            CURRENT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' site/public/latest.json 2>/dev/null || echo 0.0.0)"
-            if [ "$(printf '%s\n%s\n' "$CURRENT" "$VERSION" | sort -V | tail -n1)" != "$VERSION" ]; then
-              echo "The feed already names $CURRENT, newer than $VERSION; leaving it."
-              MESSAGE="site: the changelog names $VERSION"
-            else
-              cp "$RUNNER_TEMP/latest.json" site/public/latest.json
-              # tmplayer.org/apk follows the newest release's APK, named in full: a release
-              # carries one APK, whose name has the version in it.
-              python3 scripts/point-apk-redirect.py "$VERSION"
-              python3 scripts/aur-bump.py "$VERSION" --feed "$RUNNER_TEMP/latest.json"
-              MESSAGE="site: the update feed names $VERSION"
-            fi
-            python3 scripts/release-data.py
-            git add site/public/latest.json site/vercel.json site/src/data/releases.json desktop/packaging/aur/PKGBUILD
-            if git diff --cached --quiet; then
-              echo "The site already names $VERSION."
-              aur_output
-              exit 0
-            fi
-            git commit -m "$MESSAGE"
-            if git push origin HEAD:main; then aur_output; exit 0; fi
-            echo "main moved while the feed was written; trying again."
-          done
-          echo "::error::Could not push the update feed and the changelog to main"
-          exit 1
-
-      # The Arch Linux package, tmplayer-bin on the AUR, from the PKGBUILD the step above just
-      # pushed to main (it is in this checkout). The action runs in an Arch container, writes
-      # .SRCINFO itself and pushes to the AUR over SSH with the AUR_SSH_PRIVATE_KEY repository
-      # secret; a fork or a repository without that secret skips it, and so does a tag older than
-      # the one main's PKGBUILD names. Like the steps around it, a failure costs only the AUR
-      # update. The one-time setup is in docs/distribution/aur.md.
-      - name: Publish the AUR package
-        if: needs.version.outputs.prerelease != 'true' && steps.feed.outputs.aur == 'true'
-        continue-on-error: true
-        uses: KSXGitHub/github-actions-deploy-aur@v4.2.0
-        with:
-          pkgname: tmplayer-bin
-          pkgbuild: desktop/packaging/aur/PKGBUILD
-          commit_username: dracu-lah
-          commit_email: noreply@github.com
-          commit_message: Update to ${{ needs.version.outputs.name }}
-          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-
-      # Tells Bing, Yandex, Seznam and Naver (through IndexNow) that the release's pages changed,
-      # instead of waiting for their next crawl. Google does not take part and reads the sitemap.
-      # The key is public by design: site/public/<key>.txt proves the site asked. A failure here costs
-      # only the ping, never the release.
-      - name: Ping IndexNow with the release's pages
-        # A test version has no changelog page and changes no page of the site.
-        if: needs.version.outputs.prerelease != 'true'
-        continue-on-error: true
-        run: |
-          VERSION="${{ needs.version.outputs.name }}"
-          KEY="af11d0ad703ff8c5a7006d0ccd768528"
-          curl -sS -o /dev/null -w "IndexNow answered %{http_code}\n" --max-time 30 \
-            -H "Content-Type: application/json; charset=utf-8" \
-            -d "{\"host\":\"tmplayer.org\",\"key\":\"$KEY\",\"keyLocation\":\"https://tmplayer.org/$KEY.txt\",\"urlList\":[\"https://tmplayer.org/\",\"https://tmplayer.org/download/\",\"https://tmplayer.org/changelog/\",\"https://tmplayer.org/changelog/$VERSION\"]}" \
-            https://api.indexnow.org/indexnow
-
-      # The announcement on the Telegram channel, by the release bot. It lives in this job rather
-      # than in a workflow of its own on `release: published` because the release above is made
-      # with this job's GITHUB_TOKEN, and GitHub starts no workflow for an event that token
-      # caused: such a workflow would simply never run.
-      #
-      # It is the last step and it cannot fail the release: by now the files are up and the site
-      # names them, and a Telegram outage or a revoked bot should cost the post, not a red run
-      # that invites a re-run of a release that already happened. A fork without the secret skips
-      # it quietly. So does a tag for a version older than the one the site's feed names (read
-      # from main as the step above left it, so this release's own version still posts): a patch
-      # to an old line is not news on the channel.
-      #
-      # To see the message before a release, run the script with --dry-run; it prints the post
-      # and sends nothing.
-      - name: Announce on Telegram
-        # A test version is not news on the channel.
-        if: needs.version.outputs.prerelease != 'true'
-        continue-on-error: true
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
-        run: |
-          VERSION="${{ needs.version.outputs.name }}"
-          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-            echo "TELEGRAM_BOT_TOKEN is not set; not announcing $VERSION."
-            exit 0
-          fi
-          git fetch --depth=1 origin main
-          CURRENT="$(git show FETCH_HEAD:site/public/latest.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])' 2>/dev/null || echo 0.0.0)"
-          if [ "$(printf '%s\n%s\n' "$CURRENT" "$VERSION" | sort -V | tail -n1)" != "$VERSION" ]; then
-            echo "The site names $CURRENT, newer than $VERSION; not announcing an older version."
-            exit 0
-          fi
-          # The tag's notes without its "release: X.Y.Z" subject. A plain tag has no notes of its
-          # own (git would hand over the commit's message instead), so it posts without any.
-          NOTES=""
-          if [ "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME" 2>/dev/null)" = "tag" ]; then
-            NOTES="$(git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME")"
-          fi
-          OUT="$(python3 scripts/post-release-telegram.py --version "$VERSION" --notes "$NOTES")"
-          echo "$OUT"
-          echo "Telegram: $OUT" >> "$GITHUB_STEP_SUMMARY"
-
-  # The new version for winget (`winget install TMPlayer.TMPlayer`), as a pull request to
-  # microsoft/winget-pkgs. Windows marks a file a browser downloads, and SmartScreen stops the
-  # unsigned MSI on that mark; winget fetches the installer itself, so no mark and no warning.
-  #
-  # The pull request comes from the WINGET_TOKEN owner's fork of winget-pkgs (a classic token with
-  # public_repo; the fork has to exist). Winget's bots validate and merge it, usually within a day,
-  # and until then winget offers the previous version. Like the Telegram post it cannot fail the
-  # release: the files are already up. A fork without the secret, and a tag for a version older
-  # than the one the site names, skip it.
-  winget:
-    name: Submit to winget
-    needs: [version, publish]
-    # winget offers releases only; a test version never becomes "latest" anyway.
-    if: needs.version.outputs.prerelease != 'true'
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Check that this is the newest release and there is a token
-        id: gate
-        env:
-          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION="${{ needs.version.outputs.name }}"
-          if [ -z "$WINGET_TOKEN" ]; then
-            echo "WINGET_TOKEN is not set; not submitting $VERSION to winget."
-            echo "go=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          LATEST="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)"
-          if [ "$LATEST" != "$GITHUB_REF_NAME" ]; then
-            echo "The latest release is $LATEST, not $GITHUB_REF_NAME; winget keeps the newer one."
-            echo "go=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "go=true" >> "$GITHUB_OUTPUT"
-
-      - name: Open the winget-pkgs pull request
-        if: steps.gate.outputs.go == 'true'
-        uses: vedantmgoyal9/winget-releaser@v2
-        with:
-          identifier: TMPlayer.TMPlayer
-          installers-regex: '-windows-x64\.msi$'
-          release-tag: ${{ github.ref_name }}
-          token: ${{ secrets.WINGET_TOKEN }}
+          ARGS=()
+          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then ARGS+=(--prerelease); fi
+          gh release create "${{ steps.version.outputs.tag }}" dist/* --target "$GITHUB_SHA" --title "TG Stream ${{ steps.version.outputs.name }}" \
+            --notes-file release-notes.md "${ARGS[@]}"

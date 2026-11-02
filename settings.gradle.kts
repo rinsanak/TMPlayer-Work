@@ -20,7 +20,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TMPlayer"
+rootProject.name = "TG Stream"
 include(":app")
 include(":core")
 include(":ui")

@@ -211,6 +211,7 @@ internal fun TvTopBar(
                 BarTab(s.browseTabChats, TmIcons.Chats, current == TvBarTab.Chats && !searchOpen, onChats, Modifier.focusRequester(focusOf(TvBarTab.Chats, chatsFocus)).tvReturnPoint(focusOf(TvBarTab.Chats, chatsFocus)))
             }
             Spacer(Modifier.width(18.dp))
+            BarTab(s.navUpdate, TmIcons.Refresh, false, nav.onUpdate)
             // The app's own mark and its name, the way a television's home screen signs itself:
             // the mark at the picture's size.
             com.tmplayer.ui.components.BrandLockup(

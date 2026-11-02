@@ -4,7 +4,7 @@ import com.tmplayer.i18n.L
 import java.io.File
 
 /**
- * The parts of moving TMPlayer's files to a new storage location that are decisions rather than
+ * The parts of moving TG Stream's files to a new storage location that are decisions rather than
  * work: whether a chosen folder will do, what the confirm dialog says, which downloads still have
  * to move, and how an unfinished move is written down so the next launch can finish it.
  *
@@ -13,10 +13,10 @@ import java.io.File
  */
 object StorageRelocationPlan {
 
-    /** The folder TMPlayer makes inside whatever the viewer chose, and keeps everything in. */
-    const val APP_FOLDER = "TMPlayer"
+    /** The folder TG Stream makes inside whatever the viewer chose, and keeps everything in. */
+    const val APP_FOLDER = "TG Stream"
 
-    /** The file that marks a folder as TMPlayer's own, so a later choice of it can be recognised. */
+    /** The file that marks a folder as TG Stream's own, so a later choice of it can be recognised. */
     const val MARKER = ".tmplayer"
 
     /** Room left over on the new drive beyond the downloads themselves, before a move is allowed. */
@@ -27,15 +27,15 @@ object StorageRelocationPlan {
 
     /** What the disk says about a folder the viewer picked. Gathered by the caller. */
     data class Candidate(
-        /** The folder picked; TMPlayer's own folder goes inside it. */
+        /** The folder picked; TG Stream's own folder goes inside it. */
         val root: File,
-        /** Whether a test file could be written inside `<root>/TMPlayer`. */
+        /** Whether a test file could be written inside `<root>/TG Stream`. */
         val writable: Boolean,
         /** Free bytes on the drive [root] is on. */
         val usableBytes: Long,
         /** The file system type of that drive, as `FileStore.type()` reports it, or blank. */
         val storeType: String = "",
-        /** Whether `<root>/TMPlayer/.tmplayer` is there already, from an earlier install or choice. */
+        /** Whether `<root>/TG Stream/.tmplayer` is there already, from an earlier install or choice. */
         val markerExists: Boolean = false,
     )
 
@@ -45,7 +45,7 @@ object StorageRelocationPlan {
         data class Refused(val reason: String) : Verdict
 
         /**
-         * Usable. [adopt] is true when TMPlayer has been there before and its downloads folder can
+         * Usable. [adopt] is true when TG Stream has been there before and its downloads folder can
          * be taken on as it is; [warning] is a caution to show beside the confirm button.
          */
         data class Allowed(val adopt: Boolean, val warning: String?) : Verdict
@@ -60,8 +60,8 @@ object StorageRelocationPlan {
      * Whether [candidate] will do as the new storage location, checked in the order the viewer
      * would want to hear about it.
      *
-     * @param currentFolders the folders TMPlayer uses now (cache and downloads); the new
-     *   `TMPlayer` folder may be neither inside one of them nor hold one.
+     * @param currentFolders the folders TG Stream uses now (cache and downloads); the new
+     *   `TG Stream` folder may be neither inside one of them nor hold one.
      * @param currentRoot the storage location now chosen, or null for the default folders.
      * @param downloadsBytes what the downloads that would move take altogether.
      */
@@ -88,7 +88,7 @@ object StorageRelocationPlan {
     /** A size as the rest of the app writes it, with nothing at all written as "0 MB". */
     fun size(bytes: Long): String = if (bytes <= 0) L.formatSizeZero else MediaMapper.formatSize(bytes)
 
-    /** `<root>/TMPlayer`. */
+    /** `<root>/TG Stream`. */
     fun appFolder(root: File): File = File(root, APP_FOLDER)
 
     /** A UNC path (`\\server\share`), which Windows reports as an ordinary file store. */
@@ -148,7 +148,7 @@ object StorageRelocationPlan {
      *
      * @param root the new storage location, or blank for the default folders.
      * @param oldCache the cache folder that was in use before, deleted once the new one is running.
-     * @param oldDownloads the downloads folder before, removed at the end if TMPlayer made it and
+     * @param oldDownloads the downloads folder before, removed at the end if TG Stream made it and
      *   it is empty.
      */
     data class Pending(val root: String, val oldCache: String, val oldDownloads: String) {

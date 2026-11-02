@@ -20,7 +20,7 @@ object About {
 
     val WARRANTY: String get() = L.aboutWarranty
 
-    const val SOURCE = "https://github.com/dracu-lah/TMPlayer"
+    const val SOURCE = "https://github.com/rinsanak/TMPlayer-Work"
     const val NOTICES_ONLINE = "$SOURCE/blob/main/THIRD_PARTY_NOTICES.md"
     const val PRIVACY = "https://tmplayer.org/privacy/"
     const val LEGAL = "https://tmplayer.org/legal/"

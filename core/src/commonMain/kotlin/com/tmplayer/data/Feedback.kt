@@ -16,7 +16,7 @@ import java.net.URLEncoder
  */
 object Feedback {
 
-    const val ISSUES = "https://github.com/dracu-lah/TMPlayer/issues/new"
+    const val ISSUES = "https://github.com/rinsanak/TMPlayer-Work/issues/new"
     const val TEMPLATE = "bug_report.yml"
     const val EMAIL = "hello@tmplayer.org"
 
@@ -60,7 +60,7 @@ object Feedback {
 
     /** The same facts as an email, for somebody without a GitHub account. */
     fun mailto(facts: Facts): String {
-        val subject = "TMPlayer ${facts.version}: a problem"
+        val subject = "TG Stream ${facts.version}: a problem"
         val body = buildString {
             appendLine("Platform: ${facts.platform.option.ifEmpty { "other" }}")
             appendLine("App version: ${facts.version}")

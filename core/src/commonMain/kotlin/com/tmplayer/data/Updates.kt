@@ -70,7 +70,7 @@ val UpdateState.release: Release?
 object Updates {
 
     /** The releases page without the scheme, as the Android dialogs print it. */
-    const val RELEASES_PAGE = "github.com/dracu-lah/TMPlayer/releases"
+    const val RELEASES_PAGE = "github.com/rinsanak/TMPlayer-Work/releases"
 
     /**
      * Whether this build looks for updates at all. Off in a build that a store installs and keeps
@@ -101,7 +101,7 @@ object Updates {
     private var offers: (Release) -> Boolean = { true }
 
     @Volatile
-    private var userAgent: String = "TMPlayer"
+    private var userAgent: String = "TG Stream"
 
     /** "Get test versions", read at each check so a switch in Settings counts from the next one. */
     @Volatile
@@ -235,7 +235,7 @@ object Updates {
                 dir.mkdirs()
                 // One file, overwritten: a half-finished download from last time is worthless.
                 dir.listFiles()?.forEach { it.delete() }
-                val target = File(dir, "TMPlayer-${release.version}.apk")
+                val target = File(dir, "TG-Stream-${release.version}.apk")
 
                 val connection = (URI(asset.url).toURL().openConnection() as HttpURLConnection).apply {
                     connectTimeout = UpdateFeed.CONNECT_TIMEOUT_MS
