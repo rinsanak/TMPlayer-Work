@@ -12,6 +12,12 @@ import java.io.File
 interface TrackPickerHost {
     val player: Player?
 
+    /** Zero for a local video or a fixture that has no Telegram chat. */
+    val subtitleChatId: Long get() = 0L
+
+    /** Uses the local-file decoder too, including MicroDVD and non-UTF-8 subtitles. */
+    fun attachChatSubtitle(file: File, name: String) = attachOnlineSubtitle(file, name)
+
     fun syncDelaysNow(): SyncDelays
 
     fun stepDelay(trackType: Int, direction: Int)

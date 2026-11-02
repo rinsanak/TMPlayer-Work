@@ -119,7 +119,7 @@ class TrackPickerFragment : Fragment() {
     /** A track to choose, its name and, under it, what tells it apart from a namesake. */
     private class Option(val group: Tracks.Group?, val trackIndex: Int, val label: String, val detail: String? = null)
 
-    private enum class Page { Tracks, Online, Msone }
+    private enum class Page { Tracks, Online, Msone, Chat }
 
     /** The groups a page's lines fall into, in order, with the heading each one carries. */
     private enum class Group(val heading: () -> String?) {
@@ -178,6 +178,7 @@ class TrackPickerFragment : Fragment() {
                     val lines = trackLines(
                         onOnline = { page = Page.Online },
                         onMsone = { page = Page.Msone },
+                        onChat = { page = Page.Chat },
                         onInPlace = { tick++ },
                         lookIcon = ImageVector.vectorResource(R.drawable.ic_subtitles),
                     )
@@ -194,6 +195,7 @@ class TrackPickerFragment : Fragment() {
                     FocusOnOpen(firstFocus)
                 }
             }
+            Page.Chat -> ChatPage(closeFocus, firstFocus, back)
             Page.Online -> OnlinePage(closeFocus, firstFocus, back, msone = false)
             Page.Msone -> OnlinePage(closeFocus, firstFocus, { page = Page.Tracks }, msone = true)
         }
@@ -201,7 +203,7 @@ class TrackPickerFragment : Fragment() {
 
     // ---- the tracks ---------------------------------------------------------------------------
 
-    private fun trackLines(onOnline: () -> Unit, onMsone: () -> Unit, onInPlace: () -> Unit, lookIcon: ImageVector): List<Line> {
+    private fun trackLines(onOnline: () -> Unit, onMsone: () -> Unit, onChat: () -> Unit, onInPlace: () -> Unit, lookIcon: ImageVector): List<Line> {
         val host = host ?: return emptyList()
         val player = host.player ?: return emptyList()
         val options = buildList {
@@ -228,6 +230,7 @@ class TrackPickerFragment : Fragment() {
                 if (trackType == C.TRACK_TYPE_TEXT) {
                     onlineLine(onOnline)?.let(::add)
                     msoneLine(onMsone)?.let(::add)
+                    chatLine(onChat)?.let(::add)
                 }
                 return@buildList
             }
@@ -246,9 +249,87 @@ class TrackPickerFragment : Fragment() {
             if (trackType == C.TRACK_TYPE_TEXT) {
                 onlineLine(onOnline)?.let(::add)
                 msoneLine(onMsone)?.let(::add)
+                    chatLine(onChat)?.let(::add)
             }
             addAll(timingLines(host, onInPlace))
             if (trackType == C.TRACK_TYPE_TEXT) addAll(styleLines(host, onInPlace, lookIcon))
+        }
+    }
+
+    private fun chatLine(onChat: () -> Unit): Line? {
+        if ((host?.subtitleChatId ?: 0L) == 0L) return null
+        return Line("chat", L.tracksChatSubtitles, L.tracksChatSubtitlesDetail, icon = TmIcons.Subtitles, group = Group.Online, onClick = onChat)
+    }
+
+    @Composable
+    private fun ChatPage(closeFocus: FocusRequester, firstFocus: FocusRequester, back: () -> Unit) {
+        val owner = host ?: return
+        val scope = rememberCoroutineScope()
+        var query by remember { mutableStateOf("") }
+        var cursors by remember { mutableStateOf(listOf(0L)) }
+        var attempt by remember { mutableIntStateOf(0) }
+        var result by remember { mutableStateOf<com.tmplayer.data.ChatSubtitles.Page?>(null) }
+        var failure by remember { mutableStateOf<String?>(null) }
+        var busy by remember { mutableStateOf<com.tmplayer.data.ChatSubtitles.Entry?>(null) }
+        var loading by remember { mutableStateOf(true) }
+        val from = cursors.lastOrNull() ?: 0L
+        LaunchedEffect(query, from, attempt) {
+            loading = true
+            result = null
+            failure = null
+            try {
+                kotlinx.coroutines.delay(300)
+                val session = kotlinx.coroutines.withTimeout(20_000) { com.tmplayer.data.Td.awaitConnectedSession() }
+                result = com.tmplayer.data.ChatSubtitles.page(session.client, owner.subtitleChatId, query, from)
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                failure = L.errorsScreenFailedTitle
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failure = L.errorsScreenFailedTitle
+            } finally { loading = false }
+        }
+        ChoiceSheet(title = L.tracksChatSubtitles, note = L.tracksChatSubtitlesDetail, onDismiss = back, onClose = ::close, closeFocus = closeFocus, ignoreRelease = !isTouch(), fullScreen = true) {
+            androidx.compose.material3.OutlinedTextField(
+                value = query,
+                onValueChange = { query = it.take(200); cursors = listOf(0L) },
+                label = { M3Text(L.commonSearch) },
+                singleLine = true,
+                enabled = busy == null,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            )
+            val lines = buildList {
+                if (loading) add(Line("loading", L.commonLoading, enabled = false) {})
+                if (failure != null) add(Line("retry", L.commonRetry, detail = failure, enabled = busy == null) { attempt++ })
+                result?.let { page ->
+                    if (page.items.isEmpty()) add(Line("empty", L.tracksChatSubtitlesEmpty, enabled = false) {})
+                    page.items.forEach { entry ->
+                        add(Line(entry.messageId, entry.name, detail = if (busy == entry) L.onlineDownloading else Translator.messages.formatter.size(entry.bytes), enabled = busy == null) {
+                            busy = entry
+                            failure = null
+                            scope.launch {
+                                try {
+                                    val session = kotlinx.coroutines.withTimeout(20_000) { com.tmplayer.data.Td.awaitConnectedSession() }
+                                    val file = com.tmplayer.data.ChatSubtitles.download(session.client, owner.subtitleChatId, entry)
+                                    owner.attachChatSubtitle(file, entry.name)
+                                    close()
+                                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                                    failure = L.errorsScreenFailedTitle
+                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    failure = L.errorsScreenFailedTitle
+                                } finally { busy = null }
+                            }
+                        })
+                    }
+                    if (page.next != 0L) add(Line("older", L.tracksChatSubtitlesMore, enabled = busy == null) { cursors = cursors + page.next })
+                }
+                if (cursors.size > 1) add(Line("newer", L.commonBack, enabled = busy == null) { cursors = cursors.dropLast(1) })
+            }
+            val focusKey = lines.firstOrNull { it.enabled }?.key
+            Lines(lines, firstFocus, focusKey)
+            FocusOnOpen(if (focusKey != null) firstFocus else closeFocus, key = loading to from)
         }
     }
 
@@ -270,6 +351,7 @@ class TrackPickerFragment : Fragment() {
     /** The offset now in force, under each timing line, so a press shows where it got to. */
     private fun timingLines(host: TrackPickerHost, onInPlace: () -> Unit): List<Line> {
         val subtitles = trackType == C.TRACK_TYPE_TEXT
+        if (!subtitles) return emptyList()
         val delays = host.syncDelaysNow()
         val ms = if (subtitles) delays.subtitleMs else delays.audioMs
         val step = L.tracksDelayStep(SyncDelays.label(ms))
@@ -557,8 +639,9 @@ class TrackPickerFragment : Fragment() {
             }
             ChoiceSection(L.tracksSectionLook)
             SegmentsLabel(L.tracksSubtitleSize)
-            Segments(SubtitleSize.entries.map { it.label }, SubtitleSize.entries.indexOf(style.size)) {
-                change(host.subtitleStyleNow().copy(size = SubtitleSize.entries[it]))
+            val sizes = SubtitleSize.entries.filter { it != SubtitleSize.ExtraLarge || com.tmplayer.data.TgStreamUi.shows("C004") }
+            Segments(sizes.map { it.label }, sizes.indexOf(style.size).coerceAtLeast(0)) {
+                sizes.getOrNull(it)?.let { size -> change(host.subtitleStyleNow().copy(size = size)) }
             }
             SegmentsLabel(L.tracksSubtitlePosition)
             Segments(SubtitlePosition.entries.map { it.label }, SubtitlePosition.entries.indexOf(style.position)) {

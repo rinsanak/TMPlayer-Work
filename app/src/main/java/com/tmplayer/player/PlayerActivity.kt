@@ -5495,6 +5495,10 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         )
     }
 
+    override val subtitleChatId: Long get() = chatId
+
+    override fun attachChatSubtitle(file: File, name: String) = subtitleFiles.attachChatFile(file, name)
+
     override fun attachOnlineSubtitle(file: File, label: String) = subtitleFiles.attachFile(file, label)
 
     override val pickSubtitleFile: (() -> Unit)?

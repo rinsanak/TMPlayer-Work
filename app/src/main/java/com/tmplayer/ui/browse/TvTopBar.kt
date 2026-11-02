@@ -243,10 +243,10 @@ internal fun TvTopBar(
             ).joinToString("  ·  "),
             onDismiss = { profileOpen = false },
             actions = buildList {
-                add(MenuAction(s.browseTabFavourites, TmIcons.StarOutline, detail = nav.favoriteCount.takeIf { it > 0 }?.toString(), onSelect = go(nav.onFavourites)))
-                add(MenuAction(s.navDownloads, TmIcons.Download, detail = nav.downloadCount.takeIf { it > 0 }?.toString(), onSelect = go(nav.onDownloads)))
+                if (com.tmplayer.data.TgStreamUi.shows("H007")) add(MenuAction(s.browseTabFavourites, TmIcons.StarOutline, detail = nav.favoriteCount.takeIf { it > 0 }?.toString(), onSelect = go(nav.onFavourites)))
+                if (com.tmplayer.data.TgStreamUi.shows("H008")) add(MenuAction(s.navDownloads, TmIcons.Download, detail = nav.downloadCount.takeIf { it > 0 }?.toString(), onSelect = go(nav.onDownloads)))
                 add(MenuAction(s.browseTabHistory, TmIcons.History, detail = nav.watchingCount.takeIf { it > 0 }?.toString(), onSelect = go { nav.onHistory(HistoryTab.Continue) }))
-                add(MenuAction(s.profileWatched, TmIcons.Check, detail = nav.watchedCount.takeIf { it > 0 }?.toString(), onSelect = go { nav.onHistory(HistoryTab.Watched) }))
+                if (com.tmplayer.data.TgStreamUi.shows("H010")) add(MenuAction(s.profileWatched, TmIcons.Check, detail = nav.watchedCount.takeIf { it > 0 }?.toString(), onSelect = go { nav.onHistory(HistoryTab.Watched) }))
                 add(MenuAction(s.browseTabWatchLater, TmIcons.Clock, onSelect = go { nav.onHistory(HistoryTab.WatchLater) }))
                 // Settings, with the account at its top and Sign out at its foot, as on the phone.
                 add(MenuAction(s.navSettings, TmIcons.Settings, onSelect = go(nav.onSettings)))

@@ -398,7 +398,7 @@ class PlayerMorePanel(
         val kinds = if (host.tv) host.tvEntries().map { Kind.valueOf(it.name) } else host.phoneEntries().map { Kind.valueOf(it.name) }
         val bookmarks = remember { host.bookmarks() }
         val count = bookmarks?.bookmarks?.collectAsState()?.value?.size ?: 0
-        val lines = kinds.map { line(it, count) }
+        val lines = kinds.filter { com.tmplayer.data.TgStreamUi.playerEntry(it.name) }.map { line(it, count) }
         val requesters = remember { mutableMapOf<Kind, FocusRequester>() }
         Header(title = s.playerMoreOptions, subtitle = host.title().ifBlank { null })
         Column(Modifier.weight(1f, fill = false).fillMaxWidth().padding(horizontal = PAD)) {

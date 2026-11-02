@@ -592,7 +592,7 @@ internal fun BrowseScreen(
                         description = s.browseSortBy(historySort.label),
                     ) { pickHistorySort(historySort.toggled) },
                 )
-                HistoryTab.entries.forEach { entry ->
+                HistoryTab.entries.filter { it != HistoryTab.Watched || com.tmplayer.data.TgStreamUi.shows("H010") }.forEach { entry ->
                     add(ChipSpec(entry.name, entry.label, entry.icon, selected = entry == historyTab) { pickHistory(entry) })
                 }
             },

@@ -967,7 +967,7 @@ private fun ProfilePopover(
                     // The rows' own 6 dp at the sides, so the last row's fill keeps it below too.
                     .padding(vertical = 6.dp),
             ) {
-                com.tmplayer.ui.components.ViewingSummary(
+                if (com.tmplayer.data.TgStreamUi.shows("H007") && com.tmplayer.data.TgStreamUi.shows("H010")) com.tmplayer.ui.components.ViewingSummary(
                     watching = watchingCount,
                     watched = watchedCount,
                     starred = favoriteCount,
@@ -977,8 +977,8 @@ private fun ProfilePopover(
                 )
                 HorizontalDivider(Modifier.padding(horizontal = 14.dp, vertical = 2.dp))
                 val rows = buildList<@Composable (Modifier) -> Unit> {
-                    add { m -> PopoverRow(TmIcons.StarOutline, s.browseTabFavourites, favoriteCount.takeIf { it > 0 }?.toString(), modifier = m, onClick = onFavourites) }
-                    add { m -> PopoverRow(TmIcons.Download, s.navDownloads, downloadCount.takeIf { it > 0 }?.toString(), modifier = m, onClick = onDownloads) }
+                    if (com.tmplayer.data.TgStreamUi.shows("H007")) add { m -> PopoverRow(TmIcons.StarOutline, s.browseTabFavourites, favoriteCount.takeIf { it > 0 }?.toString(), modifier = m, onClick = onFavourites) }
+                    if (com.tmplayer.data.TgStreamUi.shows("H008")) add { m -> PopoverRow(TmIcons.Download, s.navDownloads, downloadCount.takeIf { it > 0 }?.toString(), modifier = m, onClick = onDownloads) }
                     add { m -> PopoverRow(TmIcons.History, s.browseTabHistory, null, modifier = m, onClick = onHistory) }
                     add { m -> PopoverRow(TmIcons.Clock, s.browseTabWatchLater, null, modifier = m, onClick = onWatchLater) }
                     add { m -> PopoverRow(TmIcons.Settings, s.navSettings, null, modifier = m, onClick = onSettings) }

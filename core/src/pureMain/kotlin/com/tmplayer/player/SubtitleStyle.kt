@@ -131,7 +131,10 @@ data class SubtitleStyle(
     val isDefault: Boolean get() = this == SubtitleStyle()
 
     /** The next size up, wrapping back to the smallest: what a single remote button can drive. */
-    fun nextSize(): SubtitleStyle = copy(size = SubtitleSize.entries.cycle(size))
+    fun nextSize(): SubtitleStyle {
+        val sizes = SubtitleSize.entries.filter { it != SubtitleSize.ExtraLarge || com.tmplayer.data.TgStreamUi.shows("C004") }
+        return copy(size = sizes[(sizes.indexOf(size) + 1).mod(sizes.size)])
+    }
 
     fun nextPosition(): SubtitleStyle = copy(position = SubtitlePosition.entries.cycle(position))
 
@@ -227,7 +230,9 @@ data class SubtitleStyle(
             face: String?,
             bold: Boolean?,
         ) = SubtitleStyle(
-            size = SubtitleSize.entries.firstOrNull { it.name == size } ?: SubtitleSize.Medium,
+            size = (SubtitleSize.entries.firstOrNull { it.name == size } ?: SubtitleSize.Medium).let {
+                if (it == SubtitleSize.ExtraLarge && !com.tmplayer.data.TgStreamUi.shows("C004")) SubtitleSize.Large else it
+            },
             boxLevel = SubtitleBox.entries.firstOrNull { it.name == boxLevel }
                 ?: if (box == true) SubtitleBox.LEGACY_ON else SubtitleBox.Off,
             position = SubtitlePosition.entries.firstOrNull { it.name == position } ?: SubtitlePosition.Bottom,

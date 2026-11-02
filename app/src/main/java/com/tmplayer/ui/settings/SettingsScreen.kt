@@ -903,7 +903,7 @@ fun SettingsScreen(
                         onToggle = { scope.launch { settings.setDetailFirst(!detailFirst) } },
                     )
                 }
-                item {
+                if (com.tmplayer.data.TgStreamUi.shows("S4-004")) { item {
                     ToggleRow(
                         title = s.settingsDownloadFirst,
                         subtitle = if (downloadFirst) {
@@ -917,7 +917,7 @@ fun SettingsScreen(
                             scope.launch { settings.setDownloadBeforePlaying(!downloadFirst) }
                         },
                     )
-                }
+                } }
                 // Low storage mode is on the Storage page, with the rest of what decides the room
                 // TMPlayer takes (user, 2026-10-22).
                 // On both devices, defaulting the way each always has: a phone folds surround to stereo
@@ -952,7 +952,7 @@ fun SettingsScreen(
                 // Off by default, so leaving the player pauses it as it always has; read as the
                 // player is left, so it applies to the video playing now.
                 if (touch) {
-                    item {
+                    if (com.tmplayer.data.TgStreamUi.shows("S4-007")) { item {
                         ToggleRow(
                             title = s.settingsBackgroundAudio,
                             subtitle = if (backgroundAudio) s.settingsBackgroundAudioOn else s.settingsBackgroundAudioOff,
@@ -960,12 +960,12 @@ fun SettingsScreen(
                             checked = backgroundAudio,
                             onToggle = { scope.launch { settings.setBackgroundAudio(!backgroundAudio) } },
                         )
-                    }
+                    } }
                 }
                 // Phone only (a television never enters by itself), and only where Android has the
                 // feature. Followed by the player, so it applies to the video open now (HX9).
                 if (touch && pipAvailable) {
-                    item {
+                    if (com.tmplayer.data.TgStreamUi.shows("S4-008")) { item {
                         ToggleRow(
                             title = s.settingsPictureInPictureLeave,
                             subtitle = if (pipOnLeave) s.settingsPictureInPictureLeaveOn else s.settingsPictureInPictureLeaveOff,
@@ -973,7 +973,7 @@ fun SettingsScreen(
                             checked = pipOnLeave,
                             onToggle = { scope.launch { settings.setPictureInPictureOnLeave(!pipOnLeave) } },
                         )
-                    }
+                    } }
                 }
                 // The soundtrack a video opens in when neither the file nor its series has one saved.
                 item {
@@ -1350,7 +1350,7 @@ fun SettingsScreen(
                         onToggle = { scope.launch { settings.setHomeRecent(!homeLayout.recentlyAdded) } },
                     )
                 }
-                item(key = "home_starred_rows") {
+                if (com.tmplayer.data.TgStreamUi.shows("S8-004")) { item(key = "home_starred_rows") {
                     ToggleRow(
                         title = s.settingsHomeStarredRows,
                         subtitle = if (homeLayout.starredRows) s.settingsHomeStarredRowsOn else s.settingsHomeStarredRowsOff,
@@ -1358,7 +1358,7 @@ fun SettingsScreen(
                         checked = homeLayout.starredRows,
                         onToggle = { scope.launch { settings.setHomeStarredRows(!homeLayout.starredRows) } },
                     )
-                }
+                } }
                 settingsNote { SettingsNoteText(s.settingsHomeFollowsAddedChosen) }
             }
 
@@ -1506,7 +1506,7 @@ fun SettingsScreen(
                 // into a network that is Wi-Fi or a cable and never a data allowance somebody pays for by
                 // the gigabyte, so on a TV this asks the viewer to rule out something that cannot happen.
                 if (MeteredPolicy.wifiOnlyOffered(television = !touch)) {
-                    item {
+                    if (com.tmplayer.data.TgStreamUi.shows("S10-004")) { item {
                         ToggleRow(
                             title = s.settingsWifiOnly,
                             subtitle = if (wifiOnly) {
@@ -1518,12 +1518,12 @@ fun SettingsScreen(
                             checked = wifiOnly,
                             onToggle = { scope.launch { settings.setWifiOnlyDownloads(!wifiOnly) } },
                         )
-                    }
+                    } }
                 }
                 // Beside it, a phone's row only for the same reason: a stream on mobile data fetched
                 // only a few minutes ahead, so a film stopped early has not cost most of its size.
                 if (MeteredPolicy.saveMobileDataOffered(television = !touch)) {
-                    item {
+                    if (com.tmplayer.data.TgStreamUi.shows("S10-005")) { item {
                         ToggleRow(
                             title = s.settingsSaveMobileData,
                             modifier = Modifier.jumpTarget(jumps.getValue(SetupStep.MobileData)),
@@ -1536,7 +1536,7 @@ fun SettingsScreen(
                             checked = saveMobileData,
                             onToggle = { scope.launch { settings.setSaveMobileData(!saveMobileData) } },
                         )
-                    }
+                    } }
                 }
             }
 
@@ -1545,7 +1545,7 @@ fun SettingsScreen(
             SettingsPage.Account -> {
                 sectionTitle { s.lockTitle }
                 if (!appLock.pinSet) {
-                    item {
+                    if (com.tmplayer.data.TgStreamUi.shows("S11-001")) { item {
                         ActionRow(
                             title = s.lockSetPin,
                             subtitle = s.lockSetPinDetail,
@@ -1553,9 +1553,9 @@ fun SettingsScreen(
                             modifier = Modifier.focusRequester(landing),
                             onClick = { pinFlow = PinFlow.Set },
                         )
-                    }
+                    } }
                 } else {
-                    item {
+                    if (com.tmplayer.data.TgStreamUi.shows("S11-002")) { item {
                         ActionRow(
                             title = s.lockChangePin,
                             subtitle = s.lockChangePinDetail,
@@ -1563,8 +1563,8 @@ fun SettingsScreen(
                             modifier = Modifier.focusRequester(landing),
                             onClick = { pinFlow = PinFlow.ChangeCheck },
                         )
-                    }
-                    item {
+                    } }
+                    if (com.tmplayer.data.TgStreamUi.shows("S11-003")) { item {
                         ToggleRow(
                             title = s.lockOnOpen,
                             subtitle = s.lockOnOpenDetail,
@@ -1577,11 +1577,12 @@ fun SettingsScreen(
                                 scope.launch { settings.setLockOnOpen(on) }
                             },
                         )
-                    }
+                    } }
                 }
                 item {
                     ToggleRow(
                         title = s.lockKids,
+                        modifier = if (com.tmplayer.data.TgStreamUi.active) Modifier.focusRequester(landing) else Modifier,
                         subtitle = AppLockWords.kidsDetail(appLock),
                         icon = TmIcons.Group,
                         checked = appLock.kids,
@@ -1607,14 +1608,14 @@ fun SettingsScreen(
                     )
                 }
                 if (appLock.pinSet) {
-                    item {
+                    if (com.tmplayer.data.TgStreamUi.shows("S11-006")) { item {
                         ActionRow(
                             title = s.lockRemovePin,
                             subtitle = s.lockRemovePinDetail,
                             icon = TmIcons.Close,
                             onClick = { pinFlow = PinFlow.Remove },
                         )
-                    }
+                    } }
                 }
                 settingsNote {
                     Text(
@@ -1768,7 +1769,7 @@ fun SettingsScreen(
                 sectionTitle { s.settingsHelp }
                 // A proxy (CP77), for a network where Telegram is blocked; the same screen the
                 // connecting help opens before sign in.
-                item {
+                if (com.tmplayer.data.TgStreamUi.shows("S12-007")) { item {
                     val proxyOn by com.tmplayer.data.Td.proxyOn.collectAsStateWithLifecycle()
                     ActionRow(
                         title = s.proxyTitle,
@@ -1776,39 +1777,39 @@ fun SettingsScreen(
                         icon = TmIcons.Wifi,
                         onClick = { com.tmplayer.ui.connect.ProxyScreenState.open = true },
                     )
-                }
-                item {
+                } }
+                if (com.tmplayer.data.TgStreamUi.shows("S12-008")) { item {
                     ActionRow(
                         title = s.settingsTour,
                         subtitle = s.settingsTourBody,
                         icon = TmIcons.Info,
                         onClick = { scope.launch { settings.openTour() } },
                     )
-                }
-                item {
+                } }
+                if (com.tmplayer.data.TgStreamUi.shows("S12-009")) { item {
                     ActionRow(
                         title = s.settingsWhatsNew,
                         subtitle = s.settingsWhatsNewDetail(WhatsNew.VERSION),
                         icon = TmIcons.StarOutline,
                         onClick = { whatsNew = true },
                     )
-                }
-                item {
+                } }
+                if (com.tmplayer.data.TgStreamUi.shows("S12-010")) { item {
                     ActionRow(
                         title = s.settingsChangelog,
                         subtitle = s.settingsChangelogDetail,
                         icon = TmIcons.List,
                         onClick = { openPage(WhatsNew.CHANGELOG, s.settingsQrChangelogPage) },
                     )
-                }
-                item {
+                } }
+                if (com.tmplayer.data.TgStreamUi.shows("S12-011")) { item {
                     ActionRow(
                         title = s.settingsReportProblem,
                         subtitle = s.settingsReportProblemDetail,
                         icon = TmIcons.Bug,
                         onClick = { reporting = true },
                     )
-                }
+                } }
                 // The logs to attach to that report (CP59), scrubbed of names and ids before they are written.
                 item {
                     ActionRow(
@@ -1882,14 +1883,14 @@ fun SettingsScreen(
                     // page with the rest (CP76).
                 }
 
-                item {
+                if (com.tmplayer.data.TgStreamUi.shows("S12-017")) { item {
                     ActionRow(
                         title = s.settingsAbout,
                         subtitle = s.settingsAboutDetail(Updates.installedVersion),
                         icon = TmIcons.Info,
                         onClick = onOpenAbout,
                     )
-                }
+                } }
 
                 item {
                     Column(
@@ -3434,7 +3435,7 @@ private fun SubtitleStyleDialog(style: SubtitleStyle, onChange: (SubtitleStyle) 
         )
         ChoiceList {
             ChoiceSection(s.settingsSubtitleSize)
-            SubtitleSize.entries.forEach { size ->
+            SubtitleSize.entries.filter { it != SubtitleSize.ExtraLarge || com.tmplayer.data.TgStreamUi.shows("C004") }.forEach { size ->
                 val selected = size == style.size
                 ChoiceLine(
                     title = size.label,

@@ -1070,7 +1070,7 @@ fun SeriesPanel(
                 }
                 // What a video's page offers beside its pill, for the show (HX20).
                 showActions?.let { addAll(showPageActions(it, progress.finished, marking, s)) }
-                if (trailer != null || holdTrailer) add(PageAction(s.metadataTrailer, TrailerIcon, { trailer?.let(trailers::open); Unit }))
+                if (com.tmplayer.data.TgStreamUi.shows("D017") && (trailer != null || holdTrailer)) add(PageAction(s.metadataTrailer, TrailerIcon, { trailer?.let(trailers::open); Unit }))
                 if (downloads) {
                     add(
                         when (buttons.state) {

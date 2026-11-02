@@ -173,7 +173,7 @@ fun WideDetailPanel(
             if (episodesFirst) add(0, row) else add(row)
         }
         val trailer = extras?.trailer
-        if (trailer != null || holdTrailer) {
+        if (com.tmplayer.data.TgStreamUi.shows("D017") && (trailer != null || holdTrailer)) {
             add(DetailRow(DetailAction.Play, s.metadataTrailer, TrailerIcon, onSelect = { trailer?.let(trailers::open) }, placeholder = trailer == null))
         }
     }

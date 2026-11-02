@@ -109,9 +109,11 @@ class SubtitleFiles(
         attach(Copy.Done(file, mime), label)
     }
 
-    private fun load(uri: Uri) {
+    fun attachChatFile(file: File, name: String) = load(Uri.fromFile(file), name)
+
+    private fun load(uri: Uri, nameOverride: String? = null) {
         activity.lifecycleScope.launch {
-            val name = withContext(Dispatchers.IO) { displayName(uri) } ?: L.tracksFileFallbackName
+            val name = nameOverride ?: withContext(Dispatchers.IO) { displayName(uri) } ?: L.tracksFileFallbackName
             val extension = ExternalSubtitle.extensionOf(name)
             if (!ExternalSubtitle.accepts(name)) {
                 say(L.tracksChooseFile)

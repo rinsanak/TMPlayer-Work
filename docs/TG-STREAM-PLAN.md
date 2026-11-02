@@ -56,3 +56,9 @@ TG Stream implementation. Preserve upstream source history, copyright notices an
 The user must perform those account-bound steps and test the APK on their own devices. Optional
 poster/subtitle provider keys can be added later; they are not required for Telegram sign-in or the
 Android release workflow.
+
+## 1.0.1 subtitle and selection update
+
+See TG-STREAM-SUBTITLES.md for the Android chat subtitle picker, research and UI-selection
+dependencies. The submitted 291/344 selection is preserved in TG-STREAM-SELECTION.txt.
+GitHub tests and release build are the next verification steps; no signed-in device test claimed.

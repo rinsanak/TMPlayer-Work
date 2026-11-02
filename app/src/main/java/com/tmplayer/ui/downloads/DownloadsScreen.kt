@@ -387,12 +387,12 @@ fun DownloadsScreen(
     // the button says why it cannot instead.
     val touch = isTouch()
     val canSaveToFolder = remember(touch) {
-        touch && android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE)
+        com.tmplayer.data.TgStreamUi.shows("B016") && touch && android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE)
             .resolveActivity(context.packageManager) != null
     }
     // Save to gallery: Movies/TMPlayer through MediaStore, Android 10 and later, on a phone or
     // tablet (a television has no gallery anyone looks at).
-    val canSaveToGallery = touch && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
+    val canSaveToGallery = com.tmplayer.data.TgStreamUi.shows("B016") && touch && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
     var explainingNoFolder by remember { mutableStateOf(false) }
     val folderPicker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree(),
@@ -1331,7 +1331,7 @@ fun DownloadsScreen(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        PrimaryAction(L.commonShare, TmIcons.Share) { share(chosen) }
+                        if (com.tmplayer.data.TgStreamUi.shows("D020")) PrimaryAction(L.commonShare, TmIcons.Share) { share(chosen) }
                         if (canSaveToFolder) SecondaryAction(L.downloadsSaveToFolder, TmIcons.Folder, { saveToFolder(chosen) })
                         if (canSaveToGallery) SecondaryAction(L.downloadsSaveToGallery, TmIcons.Image, { saveToGallery(chosen) })
                         SecondaryAction(

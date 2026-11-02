@@ -116,24 +116,6 @@
               default handler: autoVerify is off and t.me's own site does not name this app, so
               Android asks which app opens a link, and picking TMPlayer plays that post's video.
             -->
-            <intent-filter android:autoVerify="false">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" />
-                <data android:scheme="http" />
-                <data android:host="t.me" />
-                <data android:host="telegram.me" />
-                <data android:host="telegram.dog" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="tg" android:host="resolve" />
-                <data android:scheme="tg" android:host="privatepost" />
-                <data android:scheme="tg" android:host="join" />
-            </intent-filter>
         </activity>
 
         <!--

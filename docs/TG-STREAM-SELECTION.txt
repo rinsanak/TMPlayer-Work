@@ -1,0 +1,298 @@
+TG Stream settings selection
+Inventory: tg-stream-1.0.0-settings-selection-344-20261102
+KEEP: checked items below. Unchecked items are requested for removal from the user interface. Related technical dependencies must be assessed during implementation.
+Selected: 291 / 344
+
+H001 | Home · Navigation / account menu > Home button
+H002 | Home · Navigation / account menu > Search button
+H003 | Home · Navigation / account menu > Chats button
+H004 | Home · Navigation / account menu > Update icon
+H005 | Home · Navigation / account menu > Profile/account button
+H006 | Home · Navigation / account menu > Refresh library
+H009 | Home · Navigation / account menu > History / Continue watching
+H011 | Home · Navigation / account menu > Watch later
+H012 | Home · Navigation / account menu > Settings entry
+D001 | Home · Shelves / cards / title page > Featured artwork banner
+D002 | Home · Shelves / cards / title page > Carousel
+D003 | Home · Shelves / cards / title page > Continue watching shelf
+D004 | Home · Shelves / cards / title page > Recently added shelf
+D005 | Home · Shelves / cards / title page > Starred chat shelves
+D006 | Home · Shelves / cards / title page > See all
+D007 | Home · Shelves / cards / title page > Poster / thumbnail cards
+D008 | Home · Shelves / cards / title page > Progress on cards
+D009 | Home · Shelves / cards / title page > Title details page
+D010 | Home · Shelves / cards / title page > Ratings
+D011 | Home · Shelves / cards / title page > Seasons / episode list
+D012 | Home · Shelves / cards / title page > Episode progress / watched marks
+D013 | Home · Shelves / cards / title page > Quality / copies picker
+D014 | Home · Shelves / cards / title page > Play / Continue actions
+D015 | Home · Shelves / cards / title page > Watch later action
+D016 | Home · Shelves / cards / title page > Mark watched / unwatched
+D018 | Home · Shelves / cards / title page > More like this in your chats
+D019 | Home · Shelves / cards / title page > Wrong match correction
+B001 | Chats / search / library menus > Add / remove chosen chats
+B002 | Chats / search / library menus > Search all chats
+B003 | Chats / search / library menus > Typo-tolerant search
+B004 | Chats / search / library menus > Search within a chat
+B005 | Chats / search / library menus > Chat folders / filters
+B006 | Chats / search / library menus > Video / audio lists
+B007 | Chats / search / library menus > Sort order
+B008 | Chats / search / library menus > Video size filter
+B009 | Chats / search / library menus > Show hidden / filtered videos
+B010 | Chats / search / library menus > Star / unstar chat
+B011 | Chats / search / library menus > Hide / unhide chat
+B012 | Chats / search / library menus > Select multiple videos
+B013 | Chats / search / library menus > Select all
+B014 | Chats / search / library menus > Download selected
+B015 | Chats / search / library menus > Cancel queued downloads
+B017 | Chats / search / library menus > Delete selected local downloads
+B019 | Chats / search / library menus > Clear search history
+S3-001 | Settings · രൂപം / ഭാഷ > Theme
+S3-002 | Settings · രൂപം / ഭാഷ > Pure black
+S3-003 | Settings · രൂപം / ഭാഷ > Typeface
+S3-004 | Settings · രൂപം / ഭാഷ > High contrast
+S3-005 | Settings · രൂപം / ഭാഷ > Language
+S3-006 | Settings · രൂപം / ഭാഷ > Interface size
+S3-007 | Settings · രൂപം / ഭാഷ > Lighter pictures
+S3-008 | Settings · രൂപം / ഭാഷ > Reduce motion
+S3-009 | Settings · രൂപം / ഭാഷ > Use the wallpaper's colours
+S4-001 | Settings · Playback > Play the next episode automatically
+S4-002 | Settings · Playback > Decoder
+S4-003 | Settings · Playback > Open a video's page first
+S4-005 | Settings · Playback > Downmix to stereo
+S4-006 | Settings · Playback > Even out volume
+S4-009 | Settings · Playback > Preferred audio language
+S4-010 | Settings · Playback > Thumbnails while seeking
+S4-011 | Settings · Playback > Hide the controls after
+S4-012 | Settings · Playback > Rewind when resuming
+S5-001 | Settings · Subtitles / languages > Subtitle style
+S5-002 | Settings · Subtitles / languages > Show subtitles
+S5-003 | Settings · Subtitles / languages > Preferred subtitle language
+S5-004 | Settings · Subtitles / languages > Remembered languages
+S6-001 | Settings · Phone gestures > Vibrate on taps
+S6-002 | Settings · Phone gestures > Tap the picture to play or pause
+S6-003 | Settings · Phone gestures > Double tap to jump
+S6-004 | Settings · Phone gestures > Hold to speed up
+S6-005 | Settings · Phone gestures > Swipe sideways to seek
+S6-006 | Settings · Phone gestures > Swipe on the left for brightness
+S6-007 | Settings · Phone gestures > Swipe on the right for volume
+S7-001 | Settings · Library > Video size limits
+S7-002 | Settings · Library > Carry on from the last chat
+S7-003 | Settings · Library > Forget the last opened chat
+S7-004 | Settings · Library > Remember searches
+S7-005 | Settings · Library > Resume on your other devices
+S7-006 | Settings · Library > Chosen chats
+S7-007 | Settings · Library > Clear favourites
+S7-008 | Settings · Library > Clear history
+S8-001 | Settings · Home rows > Carousel on Home
+S8-002 | Settings · Home rows > Continue watching
+S8-003 | Settings · Home rows > Recently added
+S9-001 | Settings · TV launcher > Play Next row in the launcher
+S9-002 | Settings · TV launcher > TG Stream channel in the launcher
+S10-001 | Settings · Storage / data > Remove after watching
+S10-002 | Settings · Storage / data > Low storage mode
+S10-003 | Settings · Storage / data > Warn when space runs low
+S11-004 | Settings · Account / security > Allowed chats only
+S11-005 | Settings · Account / security > Allowed chats
+S11-007 | Settings · Account / security > Connected devices
+S11-008 | Settings · Account / security > Sign out of Telegram
+S12-001 | Settings · Updates / backup / help > Check for updates
+S12-002 | Settings · Updates / backup / help > Tell me when a new version is out
+S12-003 | Settings · Updates / backup / help > Get test versions
+S12-004 | Settings · Updates / backup / help > Install updates by itself
+S12-005 | Settings · Updates / backup / help > Back up
+S12-006 | Settings · Updates / backup / help > Restore
+S12-012 | Settings · Updates / backup / help > Save logs
+S12-013 | Settings · Updates / backup / help > Save name check
+S12-014 | Settings · Updates / backup / help > Privacy
+S12-015 | Settings · Updates / backup / help > Send crash reports
+S12-016 | Settings · Updates / backup / help > Lawful use
+A001 | Settings · Appearance submenu choices > Accent colour picker
+A002 | Settings · Appearance submenu choices > Theme: System
+A003 | Settings · Appearance submenu choices > Theme: Light
+A004 | Settings · Appearance submenu choices > Theme: Dark
+A005 | Settings · Appearance submenu choices > Pure black option
+A006 | Settings · Appearance submenu choices > Typeface picker
+A007 | Settings · Appearance submenu choices > Interface size adjustment
+A008 | Settings · Appearance submenu choices > Appearance preview
+A009 | Settings · Appearance submenu choices > Reset appearance defaults
+L001 | Settings · Decoder / language / playback submenus > Decoder: Automatic
+L002 | Settings · Decoder / language / playback submenus > Decoder: Prefer software video
+L003 | Settings · Decoder / language / playback submenus > Preferred audio language picker
+L004 | Settings · Decoder / language / playback submenus > Preferred subtitle language picker
+L005 | Settings · Decoder / language / playback submenus > Subtitle display mode picker
+L006 | Settings · Decoder / language / playback submenus > Remember languages per series
+L007 | Settings · Decoder / language / playback submenus > Forget one remembered series
+L008 | Settings · Decoder / language / playback submenus > Forget all remembered languages
+L009 | Settings · Decoder / language / playback submenus > Controls timeout picker
+L010 | Settings · Decoder / language / playback submenus > Resume rewind amount
+L011 | Settings · Decoder / language / playback submenus > Seek / double-tap jump interval
+L012 | Settings · Decoder / language / playback submenus > Hold-to-speed-up amount
+O001 | Settings · Posters / online subtitle providers > Show posters and overviews
+O002 | Settings · Posters / online subtitle providers > Skip intro buttons
+O003 | Settings · Posters / online subtitle providers > TMDB key
+O004 | Settings · Posters / online subtitle providers > OMDb key
+O005 | Settings · Posters / online subtitle providers > Clear poster/details cache
+O006 | Settings · Posters / online subtitle providers > Online subtitles / OpenSubtitles
+O007 | Settings · Posters / online subtitle providers > OpenSubtitles sign in / sign out
+O008 | Settings · Posters / online subtitle providers > Include machine-translated subtitles
+O009 | Settings · Posters / online subtitle providers > SubDL key / fallback
+O010 | Settings · Posters / online subtitle providers > MSone Malayalam subtitles
+O011 | Settings · Posters / online subtitle providers > MSone status / check again
+O012 | Settings · Posters / online subtitle providers > Clear online subtitle cache
+N001 | Settings · Notifications / storage submenus > Finished-download notifications
+N002 | Settings · Notifications / storage submenus > New-episode notifications
+N003 | Settings · Notifications / storage submenus > New videos in starred chats notifications
+N004 | Settings · Notifications / storage submenus > Missing video parts notifications
+N005 | Settings · Notifications / storage submenus > Update-ready notifications
+N006 | Settings · Notifications / storage submenus > Free up space / storage review
+N007 | Settings · Notifications / storage submenus > Clear recently played videos
+N008 | Settings · Notifications / storage submenus > Clear pictures / previews
+N009 | Settings · Notifications / storage submenus > Clear unfinished downloads
+N010 | Settings · Notifications / storage submenus > Delete downloaded videos
+N011 | Settings · Notifications / storage submenus > Download/storage location
+N012 | Settings · Notifications / storage submenus > Move existing downloads
+N013 | Settings · Notifications / storage submenus > Hidden chats: show one / show all
+N014 | Settings · Notifications / storage submenus > Connected devices: end one session
+N015 | Settings · Notifications / storage submenus > Connected devices: end other sessions
+P001 | Player · Main controls > Play / pause
+P002 | Player · Main controls > Seek bar
+P003 | Player · Main controls > Jump backward / forward
+P004 | Player · Main controls > Elapsed / duration / remaining time
+P005 | Player · Main controls > Audio tracks button
+P006 | Player · Main controls > Subtitles button
+P007 | Player · Main controls > Episodes button
+P008 | Player · Main controls > Previous episode
+P009 | Player · Main controls > Next episode
+P010 | Player · Main controls > Copies / quality button
+P011 | Player · Main controls > Playback speed button
+P012 | Player · Main controls > Picture shape button
+P013 | Player · Main controls > More options button
+P014 | Player · Main controls > Screen orientation lock
+P015 | Player · Main controls > Cast controls
+P016 | Player · Main controls > Seek preview thumbnails
+P017 | Player · Main controls > Undo long seek
+P018 | Player · Main controls > Skip intro / recap / ending / credits
+P019 | Player · Main controls > Autoplay countdown / cancel
+P020 | Player · Main controls > Resume / start-over notice
+P021 | Player · Main controls > Buffering / download status
+M001 | Player · More options > Lock the screen / remote
+M002 | Player · More options > Playback details
+M003 | Player · More options > Start over
+M004 | Player · More options > Picture shape
+M005 | Player · More options > Reset zoom
+M007 | Player · More options > Speed
+M008 | Player · More options > Volume boost
+M010 | Player · More options > Even out volume
+M013 | Player · More options > Next chapter
+M014 | Player · More options > Previous chapter
+M015 | Player · More options > Next frame
+M016 | Player · More options > Previous frame
+M021 | Player · More options > Mark watched / unwatched
+M023 | Player · More options > Open in another app
+M024 | Player · More options > Load subtitle file
+M025 | Player · More options > Remote keys guide
+T001 | Player · Audio / subtitle tracks and timing > Choose embedded audio track
+T005 | Player · Audio / subtitle tracks and timing > Subtitles off
+T006 | Player · Audio / subtitle tracks and timing > Choose embedded subtitle track
+T007 | Player · Audio / subtitle tracks and timing > Choose chat subtitle file
+T008 | Player · Audio / subtitle tracks and timing > Load local subtitle file
+T009 | Player · Audio / subtitle tracks and timing > Search OpenSubtitles
+T010 | Player · Audio / subtitle tracks and timing > Search MSone Malayalam
+T011 | Player · Audio / subtitle tracks and timing > Online search: language choice
+T012 | Player · Audio / subtitle tracks and timing > Online search: query / matching results
+T013 | Player · Audio / subtitle tracks and timing > MSone: pick file / release page
+T014 | Player · Audio / subtitle tracks and timing > Subtitles earlier
+T015 | Player · Audio / subtitle tracks and timing > Subtitles later
+T016 | Player · Audio / subtitle tracks and timing > Reset subtitle timing
+C001 | Subtitle look · Individual submenu choices > Size: Small
+C002 | Subtitle look · Individual submenu choices > Size: Medium
+C003 | Subtitle look · Individual submenu choices > Size: Large
+C005 | Subtitle look · Individual submenu choices > Colour: White
+C006 | Subtitle look · Individual submenu choices > Colour: Yellow
+C007 | Subtitle look · Individual submenu choices > Colour: Green
+C008 | Subtitle look · Individual submenu choices > Colour: Cyan
+C009 | Subtitle look · Individual submenu choices > Colour: Pink
+C010 | Subtitle look · Individual submenu choices > Background box / opacity control
+C011 | Subtitle look · Individual submenu choices > Edge: Outline
+C012 | Subtitle look · Individual submenu choices > Edge: Shadow
+C013 | Subtitle look · Individual submenu choices > Edge: None
+C014 | Subtitle look · Individual submenu choices > Typeface: Default
+C015 | Subtitle look · Individual submenu choices > Typeface: Serif
+C016 | Subtitle look · Individual submenu choices > Typeface: Typewriter
+C017 | Subtitle look · Individual submenu choices > Weight: Regular
+C018 | Subtitle look · Individual submenu choices > Weight: Bold
+C019 | Subtitle look · Individual submenu choices > Position: Bottom
+C020 | Subtitle look · Individual submenu choices > Position: Raised
+C021 | Subtitle look · Individual submenu choices > Position: High
+C022 | Subtitle look · Individual submenu choices > Reset to default look
+C023 | Subtitle look · Individual submenu choices > Live subtitle preview
+V001 | Player · Picture / speed / 3D submenu choices > Picture: Original
+V002 | Player · Picture / speed / 3D submenu choices > Picture: Fill
+V003 | Player · Picture / speed / 3D submenu choices > Picture: Stretch
+V004 | Player · Picture / speed / 3D submenu choices > Picture: 16:9
+V005 | Player · Picture / speed / 3D submenu choices > Picture: 4:3
+V006 | Player · Picture / speed / 3D submenu choices > Picture: 21:9
+V007 | Player · Picture / speed / 3D submenu choices > Picture: 2.35:1
+V008 | Player · Picture / speed / 3D submenu choices > Picture: 1:1
+V009 | Player · Picture / speed / 3D submenu choices > Speed presets
+V010 | Player · Picture / speed / 3D submenu choices > Fine speed slower / faster
+V011 | Player · Picture / speed / 3D submenu choices > Skip silence
+V026 | Player · Picture / speed / 3D submenu choices > Copies: original file / alternate copies
+V027 | Player · Picture / speed / 3D submenu choices > Copies: Telegram 720p / 480p when offered
+X001 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Subtitle background: Off
+X002 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Subtitle background: 35%
+X003 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Subtitle background: 60%
+X004 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Subtitle background: 80%
+X005 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Subtitle background: 100%
+X006 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Speed preset: 0.5×
+X007 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Speed preset: 0.75×
+X008 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Speed preset: 1×
+X009 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Speed preset: 1.25×
+X010 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Speed preset: 1.5×
+X011 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Speed preset: 1.75×
+X012 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Speed preset: 2×
+X013 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Double-tap jump: 5 seconds
+X014 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Double-tap jump: 10 seconds
+X015 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Double-tap jump: 15 seconds
+X016 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Double-tap jump: 30 seconds
+X017 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Hold speed: Off
+X018 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Hold speed: 1.5×
+X019 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Hold speed: 2×
+X020 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Hold speed: 3×
+X021 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Hide controls: 2 seconds
+X022 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Hide controls: 3.5 seconds
+X023 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Hide controls: 5 seconds
+X024 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Hide controls: 8 seconds
+X025 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Hide controls: Never
+X026 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Resume rewind: 0 seconds
+X027 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Resume rewind: 3 seconds
+X028 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Resume rewind: 5 seconds
+X029 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Resume rewind: 10 seconds
+X030 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Subtitle mode: As the video sets it
+X031 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Subtitle mode: Off unless chosen
+X032 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Subtitle mode: Always on
+X033 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Subtitle mode: Foreign audio
+X034 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Proxy type: SOCKS5
+X035 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Proxy type: HTTP
+X036 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Proxy type: MTProto
+X037 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Sleep timer: 15 minutes
+X038 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Sleep timer: 30 minutes
+X039 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Sleep timer: 45 minutes
+X040 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Sleep timer: 60 minutes
+X041 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Sleep timer: 90 minutes
+X042 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Accent colour: Telegram
+X043 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Accent colour: Red
+X044 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Accent colour: Orange
+X045 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Accent colour: Amber
+X046 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Accent colour: Emerald
+X047 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Accent colour: Teal
+X048 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Accent colour: Violet
+X049 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Accent colour: Pink
+X050 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Accent colour: Monochrome
+X051 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > Accent colour: Custom
+X052 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > App typeface: System
+X053 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > App typeface: Serif
+X054 | Submenus · ഓരോ value-വും വേർതിരിച്ച് തിരഞ്ഞെടുക്കാം > App typeface: Typewriter
+
+UNCHECKED IDS: H007, H008, H010, D017, D020, B016, B018, S4-004, S4-007, S4-008, S8-004, S10-004, S10-005, S11-001, S11-002, S11-003, S11-006, S12-007, S12-008, S12-009, S12-010, S12-011, S12-017, N016, N017, N018, M006, M009, M011, M012, M017, M018, M019, M020, M022, T002, T003, T004, C004, V012, V013, V014, V015, V016, V017, V018, V019, V020, V021, V022, V023, V024, V025

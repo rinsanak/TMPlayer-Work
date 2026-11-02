@@ -353,7 +353,7 @@ fun MediaDetailPanel(
         }
         val others = buildList {
             addAll(rows.drop(1).filter { !actionsAtFoot || it.action in HEADLINE_ACTIONS })
-            extras?.trailer?.let { trailer -> add(DetailRow(DetailAction.Play, s.metadataTrailer, TrailerIcon, onSelect = { trailers.open(trailer) })) }
+            extras?.trailer?.takeIf { com.tmplayer.data.TgStreamUi.shows("D017") }?.let { trailer -> add(DetailRow(DetailAction.Play, s.metadataTrailer, TrailerIcon, onSelect = { trailers.open(trailer) })) }
             // Posters and overviews are off: one button to turn them on from here, as Settings can.
             if (metadataOff && !actionsAtFoot) {
                 add(DetailRow(DetailAction.Play, s.metadataTurnOn, TmIcons.Info, s.metadataTurnOnDetail, onSelect = { online?.setEnabled(true) }))

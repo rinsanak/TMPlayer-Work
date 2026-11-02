@@ -700,7 +700,7 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
      * a connection too slow or too unsteady to keep up with playback, where waiting once beats
      * being stopped every few minutes.
      */
-    val downloadBeforePlaying: Flow<Boolean> = read { it[DOWNLOAD_FIRST] ?: false }
+    val downloadBeforePlaying: Flow<Boolean> = read { (TgStreamUi.shows("S4-004") && (it[DOWNLOAD_FIRST] ?: false)) }
 
     suspend fun setDownloadBeforePlaying(value: Boolean) {
         prefs.edit { it[DOWNLOAD_FIRST] = value }
@@ -708,7 +708,7 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
 
     /** Read once at the start of playback, where a flow that has not emitted yet would lie. */
     suspend fun downloadBeforePlayingNow(): Boolean =
-        prefs.data.first()[DOWNLOAD_FIRST] ?: false
+        (TgStreamUi.shows("S4-004") && (prefs.data.first()[DOWNLOAD_FIRST] ?: false))
 
     /**
      * "Low storage mode": a streamed video keeps only a rolling window of itself on the disk, so a
@@ -844,14 +844,14 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
      * a low volume and an explosion does not wake the house. Unlike [volumeBoost] it makes the
      * loudest moments quieter rather than everything louder. Off until turned on, then kept.
      */
-    val nightMode: Flow<Boolean> = read { it[NIGHT_MODE] ?: false }
+    val nightMode: Flow<Boolean> = read { (TgStreamUi.shows("M009") && (it[NIGHT_MODE] ?: false)) }
 
     suspend fun setNightMode(value: Boolean) {
         prefs.edit { it[NIGHT_MODE] = value }
     }
 
     /** Read before the player is built, like [volumeBoostNow]. */
-    suspend fun nightModeNow(): Boolean = prefs.data.first()[NIGHT_MODE] ?: false
+    suspend fun nightModeNow(): Boolean = (TgStreamUi.shows("M009") && (prefs.data.first()[NIGHT_MODE] ?: false))
 
     /**
      * Even out volume: a track mastered quietly (a film made for a cinema, most surround tracks)
@@ -963,13 +963,13 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
      * media notification with play, pause and seeking. Off until turned on: leaving the player
      * pauses it, as it always has. Picture in picture still comes first where it can. Phone only.
      */
-    val backgroundAudio: Flow<Boolean> = read { it[BACKGROUND_AUDIO] ?: false }
+    val backgroundAudio: Flow<Boolean> = read { (TgStreamUi.shows("S4-007") && (it[BACKGROUND_AUDIO] ?: false)) }
 
     suspend fun setBackgroundAudio(value: Boolean) {
         prefs.edit { it[BACKGROUND_AUDIO] = value }
     }
 
-    suspend fun backgroundAudioNow(): Boolean = prefs.data.first()[BACKGROUND_AUDIO] ?: false
+    suspend fun backgroundAudioNow(): Boolean = (TgStreamUi.shows("S4-007") && (prefs.data.first()[BACKGROUND_AUDIO] ?: false))
 
     /**
      * Whether going Home or to another app while a video plays shrinks it into a picture in
@@ -977,7 +977,7 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
      * keeps the sound going, with [backgroundAudio]). The Picture in picture buttons work either
      * way, because the viewer asked for those. Android phones only; nothing else enters by itself.
      */
-    val pictureInPictureOnLeave: Flow<Boolean> = read { it[PIP_ON_LEAVE] ?: true }
+    val pictureInPictureOnLeave: Flow<Boolean> = read { (TgStreamUi.shows("S4-008") && (it[PIP_ON_LEAVE] ?: true)) }
 
     suspend fun setPictureInPictureOnLeave(value: Boolean) {
         prefs.edit { it[PIP_ON_LEAVE] = value }
@@ -1095,14 +1095,14 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
      * Off by default, because many people watch on mobile data by choice. On, it is absolute: a
      * video that is not already downloaded will not open until there is Wi-Fi.
      */
-    val wifiOnlyDownloads: Flow<Boolean> = read { it[WIFI_ONLY] ?: false }
+    val wifiOnlyDownloads: Flow<Boolean> = read { (TgStreamUi.shows("S10-004") && (it[WIFI_ONLY] ?: false)) }
 
     suspend fun setWifiOnlyDownloads(value: Boolean) {
         prefs.edit { it[WIFI_ONLY] = value }
     }
 
     /** Read at the start of playback, where the flow's first emission has not arrived yet. */
-    suspend fun wifiOnlyDownloadsNow(): Boolean = prefs.data.first()[WIFI_ONLY] ?: false
+    suspend fun wifiOnlyDownloadsNow(): Boolean = (TgStreamUi.shows("S10-004") && (prefs.data.first()[WIFI_ONLY] ?: false))
 
     /**
      * "Save mobile data": on a metered connection a streamed video is fetched only a bounded
@@ -1113,14 +1113,14 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
      * patchy signal better. Never applies to a video the viewer is downloading. See
      * [com.tmplayer.player.SaveDataStreams].
      */
-    val saveMobileData: Flow<Boolean> = read { it[SAVE_MOBILE_DATA] ?: false }
+    val saveMobileData: Flow<Boolean> = read { (TgStreamUi.shows("S10-005") && (it[SAVE_MOBILE_DATA] ?: false)) }
 
     suspend fun setSaveMobileData(value: Boolean) {
         prefs.edit { it[SAVE_MOBILE_DATA] = value }
     }
 
     /** Read once at the start of playback, where a flow that has not emitted yet would lie. */
-    suspend fun saveMobileDataNow(): Boolean = prefs.data.first()[SAVE_MOBILE_DATA] ?: false
+    suspend fun saveMobileDataNow(): Boolean = (TgStreamUi.shows("S10-005") && (prefs.data.first()[SAVE_MOBILE_DATA] ?: false))
 
     /**
      * "Remove after watching": a download is deleted once it is marked watched. Off by default,
@@ -1964,7 +1964,7 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
         val pinSet = prefs[APP_PIN] != null
         AppLockSettings(
             pinSet = pinSet,
-            onOpen = pinSet && prefs[LOCK_ON_OPEN] == true,
+            onOpen = TgStreamUi.shows("S11-003") && pinSet && prefs[LOCK_ON_OPEN] == true,
             kids = KidsLock.inForce(prefs[KIDS_LOCK] == true, pinSet),
             kidsChats = kidsChatsOf(prefs),
         )

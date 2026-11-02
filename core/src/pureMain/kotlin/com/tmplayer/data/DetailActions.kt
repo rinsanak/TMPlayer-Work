@@ -151,10 +151,10 @@ object DetailActions {
         // only once the whole file is here: half a file opened elsewhere stops after two minutes.
         val whole = context.inDownloads || context.cached
         if (context.canHandOff && context.canBeSaved && whole) {
-            add(DetailAction.Share)
+            if (TgStreamUi.shows("D020")) add(DetailAction.Share)
             add(DetailAction.OpenElsewhere)
         }
-        if (context.canExport && KeepRules.mayExport(context.canBeSaved, context.inDownloads)) add(DetailAction.ExportCopy)
+        if (context.canExport && KeepRules.mayExport(context.canBeSaved, context.inDownloads)) if (TgStreamUi.shows("B016")) add(DetailAction.ExportCopy)
         if (context.comments > 0) add(DetailAction.CommentVideos)
         if (context.outsideChat) add(DetailAction.OpenChat)
         // Only for a video part way through: a finished one leaves History by Mark as unwatched,
