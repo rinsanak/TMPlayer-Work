@@ -34,7 +34,7 @@ class MsoneAddonTest {
         val api = MsoneAddonApi(HttpTransport {
             calls++
             HttpResponse(200, body = (if ("/catalog/" in it.url)
-                """{"metas":[{"id":"tt1234567","name":"Quiet Hills","releaseInfo":"2020"}]}"""
+                """{"metas":[{"id":"tt1234567","name":"Quiet Hills / മലയാളം (2020)","releaseInfo":"2020"}]}"""
             else result("Quiet.Hills.2020.1080p.BluRay.srt")).toByteArray())
         }, RateLimiter(0, { 0L }, {}), "test")
         assertEquals(1, api.search(movie.copy(imdb = null)).hits.size)
