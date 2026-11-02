@@ -88,10 +88,11 @@ class MsoneAddonApi(
                 val item = metas.optJSONObject(i) ?: return@mapNotNull null
                 val id = (item.opt("id") as? String)?.takeIf { IMDB.matches(it) } ?: return@mapNotNull null
                 val name = item.opt("name") as? String ?: return@mapNotNull null
+                if (name.length > 500) return@mapNotNull null
                 // The official catalog puts the English title, season and Malayalam title in
                 // one name, for example "Quiet Hills Season 1 / ... (2020)".
                 val title = MediaName.parse(name.substringBefore(" / ").trim()).title
-                if (name.length > 500 || titleKey(title) != titleKey(parsed.title)) return@mapNotNull null
+                if (titleKey(title) != titleKey(parsed.title)) return@mapNotNull null
                 val year = (item.opt("year")?.toString() ?: item.opt("releaseInfo")?.toString())
                     ?.let { Regex("(?:18|19|20)\\d{2}").find(it)?.value?.toIntOrNull() }
                 if (parsed.year != null && year != parsed.year) return@mapNotNull null
@@ -117,7 +118,8 @@ class MsoneAddonApi(
                     provider = SubtitleProvider.Msone, id = "addon:$video:$id", language = "ml",
                     release = label, fileName = label.takeIf { it.substringAfterLast('.').lowercase() in SubtitleText.FORMATS } ?: "$label.srt",
                     featureTitle = parsed.title, featureYear = parsed.year,
-                    featureSeason = parsed.season, featureEpisode = parsed.episode, link = link,
+                    featureSeason = if (parsed.isSeries) named.season else null,
+                    featureEpisode = if (parsed.isSeries) named.episode else null, link = link,
                 )
             }.distinctBy { it.id }
         }

@@ -67,6 +67,8 @@ class MsoneAddonTest {
         assertEquals(web, MsoneAddonApi.automaticHit(episode, listOf(bluray, web)))
         assertNull(MsoneAddonApi.automaticHit(episode, listOf(web.copy(featureEpisode = 3))))
         assertNull(MsoneAddonApi.automaticHit(episode, listOf(web.copy(featureTitle = "Another Show"))))
+        val unnamed = MsoneAddonApi.parseHits(result("Quiet.Hills.srt"), "tt1234567:1:2", parsed)
+        assertNull(MsoneAddonApi.automaticHit(episode, unnamed))
     }
 
     @Test fun `HTML empty oversized expired and rate limited answers do not become subtitles`() = runBlocking {
