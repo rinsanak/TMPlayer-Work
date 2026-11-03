@@ -59,7 +59,7 @@ jobs:
       # the tested build type (debug) gets a unit test task at all, so this is every app test.
       - name: Check diagnostic and Glass regressions
         timeout-minutes: 8
-        run: ./gradlew :app:testDebugUnitTest --tests "*DiagnosticSessionTest" --tests "*GlassCardsRenderTest"
+        run: ./gradlew :app:testDebugUnitTest --tests "*DiagnosticSessionTest" --tests "*GlassCards*Test"
 
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest

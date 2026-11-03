@@ -33,10 +33,9 @@ import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import java.time.Duration
 
-@RunWith(RobolectricTestRunner::class)
-@GraphicsMode(GraphicsMode.Mode.NATIVE)
-class GlassCardsRenderTest {
-    private fun render(tv: Boolean, name: String) {
+/** Separate classes get separate workers, keeping Robolectric frame clocks independent. */
+abstract class GlassCardsRenderFixture {
+    protected fun render(tv: Boolean, name: String) {
         val settings = SettingsStore(RuntimeEnvironment.getApplication())
         TgStreamUi.active = true; FormFactor.override(tv); com.tmplayer.ui.theme.Motion.reduced = true
         runBlocking { settings.setThemeChoice(ThemeChoice.Glass) }
@@ -81,7 +80,22 @@ class GlassCardsRenderTest {
             runBlocking { settings.setThemeChoice(ThemeChoice.System) }
         }
     }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class GlassCardsPhoneTest : GlassCardsRenderFixture() {
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp-port-mdpi") fun phone() = render(false, "phone")
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class GlassCardsTelevisionTest : GlassCardsRenderFixture() {
     @Test @Config(sdk = [28], qualifiers = "w960dp-h540dp-land-television-mdpi") fun television() = render(true, "tv")
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class GlassCardsLargeTextTest : GlassCardsRenderFixture() {
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp-port-mdpi", fontScale = 1.3f) fun largeText() = render(false, "large-text")
 }
