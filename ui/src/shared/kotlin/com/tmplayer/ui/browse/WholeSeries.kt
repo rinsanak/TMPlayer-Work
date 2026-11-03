@@ -3,13 +3,13 @@ package com.tmplayer.ui.browse
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import com.tmplayer.data.ChatRepository
 import com.tmplayer.data.MediaCursors
 import com.tmplayer.data.MediaItem
 import com.tmplayer.data.MediaPage
 import com.tmplayer.data.Series
 import com.tmplayer.data.SeriesFill
-import com.tmplayer.data.SizeFilter
 import com.tmplayer.data.Td
 import com.tmplayer.platform.LruMap
 import kotlinx.coroutines.CancellationException
@@ -26,7 +26,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 @Composable
 fun rememberWholeSeries(series: Series): Series {
-    val whole by produceState(WholeSeries.peek(series) ?: series, series) {
+    val initial = remember(series) { WholeSeries.peek(series) ?: series }
+    val whole by produceState(initial, series) {
         val read = runCatching { WholeSeries.read(series, onPage = { value = it }) }.getOrElse { failure ->
             if (failure is CancellationException) throw failure
             null
@@ -42,11 +43,11 @@ object WholeSeries {
 
     /** [series] as made whole before, when that still holds every episode it has now. */
     fun peek(series: Series): Series? =
-        kept[keyOf(series)]?.takeIf { it.episodeCount >= series.episodeCount && it.key == series.key }
+        kept[keyOf(series)]?.let { SeriesFill.combine(series, it) }
 
     /**
-     * Searches [series]' chat for it ([fetch], Telegram by default), within the default size
-     * limits so a short sample is not taken for an episode, and folds in what belongs to it.
+     * Reads this title to the end in each known source chat/topic. Discovery size limits do
+     * not apply to a show's episodes. A page timeout, repeated cursor or screen close stops it.
      */
     suspend fun read(
         series: Series,
@@ -55,17 +56,17 @@ object WholeSeries {
         mergeDispatcher: CoroutineDispatcher = Dispatchers.Default,
     ): Series {
         val query = SeriesFill.queryOf(series) ?: return series
-        val chatId = series.cover.chatId
-        val topic = series.cover.topicId
         var whole = peek(series) ?: series
         onPage(whole)
-        var cursors = MediaCursors()
-        val visited = HashSet<MediaCursors>()
+        val sources = whole.episodes.flatMap { it.copies }.map { it.chatId to it.topicId }.distinct()
+
         // Draw each answer as it arrives. Slow later pages must not hide usable episodes,
         // and closing the page cancels the read while retaining the answers already drawn.
-        withTimeoutOrNull(READ_TIMEOUT_MS) {
-            for (page in 0 until SeriesFill.MAX_PAGES) {
-                if (!visited.add(cursors)) break
+        for ((chatId, topic) in sources) {
+            var cursors = MediaCursors()
+            val visited = HashSet<MediaCursors>()
+            // A detail page reads to the end of this title, not Home's discovery budget.
+            while (visited.add(cursors)) {
                 val read = try {
                     withTimeoutOrNull(PAGE_TIMEOUT_MS) { fetch(chatId, query, cursors, topic) }
                 } catch (failure: Exception) {
@@ -73,9 +74,8 @@ object WholeSeries {
                     null
                 } ?: break
                 val next = withContext(mergeDispatcher) {
-                    SeriesFill.merge(whole, read.items.filter {
-                        SizeFilter.matches(it.sizeBytes, SizeFilter.DEFAULT_MIN, SizeFilter.DEFAULT_MAX)
-                    })
+                    // Known series membership, not a discovery size slider, decides episodes.
+                    SeriesFill.merge(whole, read.items)
                 }
                 if (next != whole) {
                     whole = next
@@ -100,5 +100,4 @@ object WholeSeries {
     /** Shows kept made whole: a run's worth of pages opened. */
     private const val KEPT = 48
     private const val PAGE_TIMEOUT_MS = 12_000L
-    private const val READ_TIMEOUT_MS = 30_000L
 }

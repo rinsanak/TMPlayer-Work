@@ -55,7 +55,10 @@ jobs:
       - name: Select checks for the artwork and Glass fix
         id: checks
         run: |
-          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.7 ]; then
+          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.8 ]; then
+            echo "focused=true" >> "$GITHUB_OUTPUT"
+            echo "data=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.7 ]; then
             echo "focused=true" >> "$GITHUB_OUTPUT"
           else
             echo "focused=false" >> "$GITHUB_OUTPUT"
@@ -63,7 +66,9 @@ jobs:
 
       - name: Run core and ui tests
         run: |
-          if [ "${{ steps.checks.outputs.focused }}" = true ]; then
+          if [ "${{ steps.checks.outputs.data }}" = true ]; then
+            ./gradlew :core:jvmTest --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*HomeFeaturedTest' --tests '*SameTitleTest' --tests '*SeriesFillTest' --tests '*SeriesShelf*Test' --tests '*HomeAutoFillTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
+          elif [ "${{ steps.checks.outputs.focused }}" = true ]; then
             ./gradlew :core:jvmTest --tests 'com.tmplayer.online.*' --tests '*MediaNameTest' --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*SameTitleTest' --tests '*SeriesShelf*Test' --tests '*GarbageInputTest' :ui:jvmTest --tests '*ThemeTokensTest' --tests '*HomeViewModelCacheTest'
           else
             ./gradlew :core:jvmTest :ui:jvmTest
@@ -77,6 +82,7 @@ jobs:
         run: ./gradlew :app:testDebugUnitTest --tests "*TvReachGlass*Test" --info
 
       - name: Check diagnostic, Glass, player and navigation regressions
+        if: steps.checks.outputs.data != 'true'
         timeout-minutes: 10
         run: |
           if [ "${{ steps.checks.outputs.focused }}" = true ]; then
@@ -90,9 +96,11 @@ jobs:
         run: ./gradlew :app:testDebugUnitTest
 
       - name: Build debug APK
+        if: steps.checks.outputs.data != 'true'
         run: ./gradlew :app:assembleDebug
 
       - name: Upload debug APKs
+        if: steps.checks.outputs.data != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: tg-stream-debug

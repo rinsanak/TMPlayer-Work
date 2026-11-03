@@ -6,6 +6,14 @@ import org.junit.Test
 
 /** A show's page made whole from a search of its chat. */
 class SeriesFillTest {
+    @Test fun `canonical alias changes keep the opened show and its missing episodes`() {
+        val opened = show(listOf(episode(1, 1, "Quiet Hills Extended"), episode(1, 2, "Quiet Hills Extended")))
+        val found = (1..4).map { episode(1, it, "Quiet Hills").copy(messageId = 200L + it, fileId = 200 + it) }
+        val whole = SeriesFill.merge(opened, found)
+        assertEquals(opened.key, whole.key)
+        assertEquals(listOf(1, 2, 3, 4), whole.episodes.map { it.episode })
+    }
+
 
     private fun episode(chatId: Long, n: Int, show: String = "Quiet Hills") = MediaItem(
         chatId = chatId, messageId = 100L + n, fileId = n, title = "$show S01E%02d 1080p.mkv".format(n), sizeBytes = 900L * 1024 * 1024,

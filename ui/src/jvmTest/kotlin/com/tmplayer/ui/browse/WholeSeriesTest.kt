@@ -15,6 +15,58 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WholeSeriesTest {
+    @Test fun `Home includes small episodes and all later seasons`() = runTest {
+        val chat = 81201L
+        val opened = show(chat)
+        val small = episode(chat, 3).copy(messageId = 203, fileId = 203, fileName = "Quiet Hills S02E01.mkv", title = "Quiet Hills S02E01.mkv", sizeBytes = 80L * 1024 * 1024)
+        val whole = WholeSeries.read(opened, fetch = { _, _, _, _ -> MediaPage(listOf(small), MediaCursors(), true) }, mergeDispatcher = StandardTestDispatcher(testScheduler))
+        assertEquals(listOf(1, 2), whole.seasons.map { it.number })
+        assertEquals(3, whole.episodeCount)
+    }
+
+    @Test fun `a slow complete search is not cut off at thirty seconds`() = runTest {
+        val chat = 81202L
+        var calls = 0
+        val whole = WholeSeries.read(show(chat), fetch = { _, _, _, _ ->
+            kotlinx.coroutines.delay(11_000)
+            calls++
+            MediaPage(listOf(episode(chat, calls + 2)), MediaCursors(video = calls.toLong()), calls == 3)
+        }, mergeDispatcher = StandardTestDispatcher(testScheduler))
+        assertEquals(3, calls)
+        assertEquals(5, whole.episodeCount)
+    }
+
+    @Test fun `detail search continues past the Home page budget to the actual end`() = runTest {
+        val chat = 81203L
+        var calls = 0
+        val whole = WholeSeries.read(show(chat), fetch = { _, _, _, _ ->
+            calls++
+            MediaPage(listOf(episode(chat, calls + 2)), MediaCursors(video = calls.toLong()), calls == 10)
+        }, mergeDispatcher = StandardTestDispatcher(testScheduler))
+        assertEquals(10, calls)
+        assertEquals(12, whole.episodeCount)
+    }
+
+    @Test fun `same-count cached data cannot replace new episodes`() = runTest {
+        val chat = 81204L
+        WholeSeries.read(show(chat), fetch = { _, _, _, _ -> MediaPage(emptyList(), MediaCursors(), true) }, mergeDispatcher = StandardTestDispatcher(testScheduler))
+        val incoming = (SeriesShelf.arrange(listOf(episode(chat, 3), episode(chat, 4))).single() as ShelfEntry.Show).series
+        assertEquals(4, WholeSeries.peek(incoming)?.episodeCount)
+    }
+
+    @Test fun `a Home show searches each known source chat`() = runTest {
+        val a = 81205L
+        val b = 81206L
+        val opened = (SeriesShelf.arrange(listOf(episode(a, 1), episode(a, 2), episode(b, 3))).single() as ShelfEntry.Show).series
+        val asked = mutableSetOf<Long>()
+        val whole = WholeSeries.read(opened, fetch = { chat, _, _, _ ->
+            asked += chat
+            MediaPage(listOf(episode(chat, if (chat == a) 4 else 5)), MediaCursors(), true)
+        }, mergeDispatcher = StandardTestDispatcher(testScheduler))
+        assertEquals(setOf(a, b), asked)
+        assertEquals(5, whole.episodeCount)
+    }
+
     private fun episode(chat: Long, number: Int) = MediaItem(
         chatId = chat, messageId = number.toLong(), fileId = number,
         title = "Quiet Hills S01E%02d.mkv".format(number),

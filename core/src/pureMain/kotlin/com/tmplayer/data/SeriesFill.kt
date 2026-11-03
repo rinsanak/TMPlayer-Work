@@ -24,14 +24,30 @@ object SeriesFill {
      */
     fun merge(series: Series, found: List<MediaItem>): Series {
         if (found.isEmpty()) return series
-        val chatId = series.cover.chatId
         val own = series.episodes.flatMap { it.copies }
-        val pool = (own + found.filter { it.chatId == chatId })
+        val chats = own.mapTo(HashSet()) { it.chatId }
+        val pool = (own + found.filter { it.chatId in chats })
             .distinctBy { it.id }
             .sortedWith(FeedMerge.newestFirst)
+        val ids = own.mapTo(HashSet()) { it.id }
         val whole = SeriesShelf.arrange(pool)
-            .firstNotNullOfOrNull { entry -> (entry as? ShelfEntry.Show)?.series?.takeIf { it.key == series.key } }
+            .firstNotNullOfOrNull { entry -> (entry as? ShelfEntry.Show)?.series?.takeIf {
+                it.key == series.key || it.episodes.any { episode -> episode.copies.any { copy -> copy.id in ids } }
+            } }?.copy(key = series.key)
             ?: return series
         return if (whole.episodeCount >= series.episodeCount && whole.episodes.sumOf { it.copies.size } >= own.size) whole else series
     }
+    /** Combine known parts of the same show without losing a season from another Home row. */
+    fun combine(series: Series, other: Series): Series {
+        if (series.key != other.key) return series
+        val pool = (series.episodes + other.episodes).flatMap { it.copies }
+            .distinctBy { it.id }.sortedWith(FeedMerge.newestFirst)
+        val ids = series.episodes.flatMap { it.copies }.mapTo(HashSet()) { it.id }
+        return SeriesShelf.arrange(pool).firstNotNullOfOrNull {
+            (it as? ShelfEntry.Show)?.series?.takeIf { found ->
+                found.key == series.key || found.episodes.any { episode -> episode.copies.any { copy -> copy.id in ids } }
+            }
+        }?.copy(key = series.key) ?: series
+    }
+
 }

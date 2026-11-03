@@ -4,6 +4,46 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class HomeContentTest {
+    @Test fun `copies from later Home rows are retained in the first card`() {
+        val a = video(31, "Quiet.Hills.2020.1080p.mkv")
+        val b = video(32, "Quiet.Hills.2020.720p.Tamil.mkv")
+        val rows = HomeContent.clean(listOf(HomeRow.Recent(listOf(ShelfEntry.File(a)), true), HomeRow.Chat(32, "Other", listOf(ShelfEntry.File(b)), true)))
+        val entry = (rows.single() as HomeRow.Recent).entries.single() as ShelfEntry.File
+        assertEquals(setOf(a.id, b.id), entry.item.versions.map { it.id }.toSet())
+    }
+
+    @Test fun `cached episode copies rebuild as a series without collapsing seasons`() {
+        val a = video(41, "Quiet.Hills.S01E01.mkv", 2400)
+        val b = video(42, "Quiet.Hills.S02E01.mkv", 2400)
+        val cached = a.copy(versions = listOf(a, b))
+        val rows = HomeContent.clean(listOf(HomeRow.Recent(listOf(ShelfEntry.File(cached)), true)))
+        val show = ((rows.single() as HomeRow.Recent).entries.single() as ShelfEntry.Show).series
+        assertEquals(listOf(1, 2), show.seasons.map { it.number })
+        assertEquals(2, show.episodeCount)
+    }
+
+    @Test fun `cached verified aliases reuse original dedupe on the first Home build`() {
+        val dir = java.nio.file.Files.createTempDirectory("home-alias").toFile()
+        val before = com.tmplayer.online.OnlineMetadata.current
+        try {
+            val cache = com.tmplayer.online.MetadataCache(java.io.File(dir, "cache"))
+            val store = com.tmplayer.online.MetadataStore(java.io.File(dir, "settings"))
+            store.update { it.copy(enabled = true) }
+            val online = com.tmplayer.online.OnlineMetadata("", store, cache, "test", http = com.tmplayer.online.HttpTransport { throw AssertionError("No network for cached identity") }, language = { "en" })
+            com.tmplayer.online.OnlineMetadata.current = online
+            val a = video(51, "Quiet.Hills.2020.1080p.mkv")
+            val b = video(52, "Montagnes.Calmes.2020.720p.mkv")
+            val info = com.tmplayer.online.MetaInfo(com.tmplayer.online.MetaProvider.Tmdb, "42", com.tmplayer.online.MetaKind.Film, "Quiet Hills", year = 2020)
+            for (item in listOf(a, b)) cache.putAnswer(item.metaQuery!!.cacheKey(online.tmdbLanguage()), com.tmplayer.online.MetaResult.Found(info))
+            val rows = HomeContent.clean(listOf(HomeRow.Recent(listOf(ShelfEntry.File(a.copy(versions = listOf(a, b)))), true)))
+            val entry = (rows.single() as HomeRow.Recent).entries.single() as ShelfEntry.File
+            assertEquals(setOf(a.id, b.id), entry.item.versions.map { it.id }.toSet())
+        } finally {
+            com.tmplayer.online.OnlineMetadata.current = before
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun `RT uploader mark and ampersand copies from the screenshot form one card`() {
         val names = listOf("Avarachan.and.Sons.2026.1080p.mkv", "RTAvarachan.and.Sons.2026.720p.mkv", "RTAvarachan.&.Sons.2026.1080p.mkv")
         val copies = names.mapIndexed { i, name -> video((i + 21).toLong(), name) }
