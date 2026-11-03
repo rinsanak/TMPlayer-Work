@@ -53,6 +53,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -269,8 +270,13 @@ internal fun TouchNavHost(
 
     // The bar comes back whenever the page underneath changes: a bar left hidden across a change
     // of page has no pull-down to restore it on a page too short to scroll.
+    val diagnostic by com.tmplayer.data.DiagnosticSession.status.collectAsState()
+    LaunchedEffect(pageKey, spec?.current, spec?.inProfile, spec?.hidden, diagnostic.serial, diagnostic.recording) {
+        if (diagnostic.recording) {
+            com.tmplayer.data.DiagnosticSession.event("NAVIGATION", "page=${pageKey.javaClass.simpleName} section=${spec?.current} profile=${spec?.inProfile} hidden=${spec?.hidden}")
+        }
+    }
     LaunchedEffect(pageKey, spec?.current, spec?.inProfile, spec?.hidden) {
-        com.tmplayer.data.DiagnosticSession.event("NAVIGATION", "page=${pageKey.javaClass.simpleName} section=${spec?.current} profile=${spec?.inProfile} hidden=${spec?.hidden}")
         bar.show()
     }
     // And on the way back from the player, an activity coming forward rather than a recomposition.

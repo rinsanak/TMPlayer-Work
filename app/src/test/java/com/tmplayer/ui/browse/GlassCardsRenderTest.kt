@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -35,7 +36,7 @@ import java.time.Duration
 
 /** Separate classes get separate workers, keeping Robolectric frame clocks independent. */
 abstract class GlassCardsRenderFixture {
-    protected fun render(tv: Boolean, name: String) {
+    protected fun render(tv: Boolean, name: String, diagnosticCheck: Boolean = false) {
         val settings = SettingsStore(RuntimeEnvironment.getApplication())
         TgStreamUi.active = true; FormFactor.override(tv); com.tmplayer.ui.theme.Motion.reduced = true
         runBlocking { settings.setThemeChoice(ThemeChoice.Glass) }
@@ -51,7 +52,10 @@ abstract class GlassCardsRenderFixture {
                     Column(Modifier.fillMaxSize().background(Tone.background).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         PhoneHomeBrand(Modifier.fillMaxWidth(), false)
                         com.tmplayer.ui.components.BrandLockup(modifier = Modifier.size(0.dp).graphicsLayer { alpha = 0f }, mark = { markDrawn = true })
-                        MediaCard(MediaItem(chatId = 1, messageId = 1, fileId = 1, title = "Quiet Hills", fileName = "Quiet.Hills.2020.1080p.mkv", sizeBytes = 900_000_000, durationSec = 7200, mimeType = "video/mp4", thumbnailFileId = 0, miniThumbnail = null, date = 0), watched = null, onClick = {}, poster = true, artworkOnly = true, modifier = Modifier.width(200.dp))
+                        ShelfTile(entry = ShelfEntry.File(MediaItem(chatId = 1, messageId = 1, fileId = 1, title = "Quiet Hills", fileName = "Quiet.Hills.2020.1080p.mkv", sizeBytes = 900_000_000, durationSec = 7200, mimeType = "video/mp4", thumbnailFileId = 0, miniThumbnail = null, date = 0)), poster = true,
+                            watch = remember { SeriesWatch(point = { null }, finished = { false }) }, touch = !tv,
+                            chatTitle = { "" }, onPlay = { _, _ -> }, onHold = { _, _ -> }, onOpenSeries = {},
+                            modifier = Modifier.width(200.dp))
                     }
                 }
             }
@@ -74,7 +78,17 @@ abstract class GlassCardsRenderFixture {
             val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888); root.draw(Canvas(bitmap))
             val file = File("build/reports/tests/testDebugUnitTest/glass-app/$name.png").apply { parentFile?.mkdirs() }
             file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+            if (diagnosticCheck) {
+                // Start after the Home card was drawn; no refresh or item change may be needed.
+                DiagnosticSession.install(RuntimeEnvironment.getApplication())
+                DiagnosticSession.start()
+                repeat(30) { Thread.sleep(25); shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(50)) }
+                val recorded = DiagnosticSession.stop().readText()
+                assertTrue(recorded, recorded.contains("HOME_CARD") && recorded.contains("rawName=Quiet.Hills.2020.1080p.mkv"))
+                assertTrue(recorded.contains("SESSION_STOP"))
+            }
         } finally {
+            if (diagnosticCheck) runCatching { DiagnosticSession.stop() }
             controller.pause().stop().destroy(); TgStreamUi.active = false; FormFactor.override(false)
             com.tmplayer.ui.theme.Motion.reduced = false; com.tmplayer.ui.theme.Motion.glass = false
             runBlocking { settings.setThemeChoice(ThemeChoice.System) }
@@ -98,4 +112,11 @@ class GlassCardsTelevisionTest : GlassCardsRenderFixture() {
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class GlassCardsLargeTextTest : GlassCardsRenderFixture() {
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp-port-mdpi", fontScale = 1.3f) fun largeText() = render(false, "large-text")
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class GlassCardsRecordingTest : GlassCardsRenderFixture() {
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp-port-mdpi")
+    fun recordsTheCardAlreadyVisibleWhenRecordingStarts() = render(false, "recording-start", diagnosticCheck = true)
 }

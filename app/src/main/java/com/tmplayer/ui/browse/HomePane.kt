@@ -1057,7 +1057,7 @@ private fun RowSeeAll(
 
 /** One of a shelf's tiles: a video's card, or a show's that opens its page. */
 @Composable
-private fun ShelfTile(
+internal fun ShelfTile(
     entry: ShelfEntry,
     poster: Boolean,
     watch: SeriesWatch,
@@ -1068,7 +1068,9 @@ private fun ShelfTile(
     onOpenSeries: (Series) -> Unit,
     modifier: Modifier,
 ) {
-    LaunchedEffect(entry) {
+    val diagnostic by com.tmplayer.data.DiagnosticSession.status.collectAsState()
+    LaunchedEffect(entry, diagnostic.serial, diagnostic.recording) {
+        if (!diagnostic.recording) return@LaunchedEffect
         val item = when (entry) { is ShelfEntry.File -> entry.item; is ShelfEntry.Show -> entry.series.cover }
         com.tmplayer.data.DiagnosticSession.event("HOME_CARD", "identityHash=${com.tmplayer.data.HomeContent.identity(item).hashCode()} titleHash=${com.tmplayer.data.TitleIdentity.name(item).hashCode()} year=${com.tmplayer.data.TitleIdentity.year(item)} fileId=${item.fileId} thumbnailId=${item.thumbnailFileId} durationSec=${item.durationSec} copies=${item.versions.size} rawName=${item.fileName} parsedTitle=${com.tmplayer.data.TitleIdentity.parsed(item).title}")
     }
