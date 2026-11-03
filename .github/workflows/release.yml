@@ -118,7 +118,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for attempt in $(seq 1 40); do
+          for attempt in $(seq 1 120); do
             CI_RUN="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=20" --jq '[.workflow_runs[] | select(.name == "CI")] | sort_by(.id) | last | .id // empty' || true)"
             STATUS=""
             if [ -n "$CI_RUN" ]; then
