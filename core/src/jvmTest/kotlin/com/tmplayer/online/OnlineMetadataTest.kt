@@ -310,17 +310,19 @@ class OnlineMetadataTest {
 
     @Test
     fun aDroppedConnectionIsTriedOnceMoreThenLeftUnkept() = runBlocking {
-        var calls = 0
+        val calls = mutableListOf<String>()
         val flaky = object : HttpTransport {
             override suspend fun send(request: HttpRequest): HttpResponse {
-                calls++
+                calls += request.url
                 throw java.io.IOException("connection reset")
             }
         }
         val store = MetadataStore(File(dir, "flaky.properties")).apply { update { it.copy(enabled = true) } }
         val online = OnlineMetadata("k", store, MetadataCache(File(dir, "flaky"), now = { clock }), "t", flaky, { clock }, { clock += it }, { "en" })
         assertEquals(MetaResult.Unavailable, online.lookup(query("Big.Buck.Bunny.2008.mkv")))
-        assertEquals(2, calls)
+        assertEquals(2, calls.count { "themoviedb.org" in it })
+        assertEquals(2, calls.count { "media-imdb.com" in it })
+        assertEquals(4, calls.size)
         assertEquals(0L, online.cacheBytes())
     }
 
