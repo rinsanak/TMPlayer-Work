@@ -119,15 +119,17 @@ jobs:
           grep -Fxq "Number of signers: 1" apk-verification.txt
           grep -Fq "certificate SHA-256 digest: 3580acc62809ab114ccb00d567d24fe3b2aee2cc4f1aa02e2d5242ae27119686" apk-verification.txt
           "$(dirname "$APKSIGNER")/aapt2" dump badging "$APK" > apk-badging.txt
-          grep -E "^(package:|sdkVersion:|targetSdkVersion:|native-code:)" apk-badging.txt
+          grep -Ei "^(package:|[^:]*sdk[^:]*:|native-code:)" apk-badging.txt
           python3 - "$APK" "${{ steps.version.outputs.name }}" "${{ steps.version.outputs.code }}" <<'PY'
-          import hashlib, json, pathlib, sys, zipfile
+          import hashlib, json, pathlib, re, sys, zipfile
           apk = pathlib.Path(sys.argv[1])
           version, code = sys.argv[2:]
           badging = pathlib.Path("apk-badging.txt").read_text()
           assert "package: name='com.rinsanak.tgstream'" in badging, "Unexpected application ID"
           assert f"versionName='{version}'" in badging and f"versionCode='{code}'" in badging, "Unexpected APK version"
-          assert "sdkVersion:'23'" in badging and "targetSdkVersion:'35'" in badging, "Unexpected SDK range"
+          minimum = re.search(r"(?im)^(?:min)?sdkVersion:\s*['\"]?(\d+)", badging)
+          target = re.search(r"(?im)^targetSdkVersion:\s*['\"]?(\d+)", badging)
+          assert minimum and minimum.group(1) == "23" and target and target.group(1) == "35", "Unexpected SDK range:\n" + badging
           with zipfile.ZipFile(apk) as archive:
               abis = {name.split("/")[1] for name in archive.namelist() if name.startswith("lib/") and name.endswith(".so")}
           assert {"arm64-v8a", "armeabi-v7a"} <= abis, abis

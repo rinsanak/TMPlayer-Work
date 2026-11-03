@@ -228,6 +228,7 @@ fun Modifier.tvReachable(edge: TvReach.Edge, onHeld: (Boolean) -> Unit = {}): Mo
 fun Modifier.tvHoldsFocus(first: FocusRequester): Modifier {
     if (isTouch()) return this
     val manager = LocalFocusManager.current
+    val rtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
     val back = remember { TvReach.returnPoint }
     val gate = remember { Gate() }
     LaunchedEffect(Unit) {
@@ -239,10 +240,24 @@ fun Modifier.tvHoldsFocus(first: FocusRequester): Modifier {
         .onFocusChanged { gate.focus(it.hasFocus) }
         .onKeyEvent { event ->
             val dir = arrow(event) ?: return@onKeyEvent false
-            if (event.type == KeyEventType.KeyDown) manager.moveFocus(dir)
+            if (event.type == KeyEventType.KeyDown) {
+                gate.triedOut = false
+                val moved = manager.moveFocus(dir)
+                // Decorative parents can make spatial search choose outside the card. Fall back
+                // to its reading order, with the same exit fence, so every answer stays reachable.
+                if ((!moved || gate.triedOut) && (dir == FocusDirection.Left || dir == FocusDirection.Right)) {
+                    val previous = (dir == FocusDirection.Left) != rtl
+                    manager.moveFocus(if (previous) FocusDirection.Previous else FocusDirection.Next)
+                }
+            }
             true
         }
-        .focusProperties { onExit = { if (requestedFocusDirection in ARROWS) cancelFocusChange() } }
+        .focusProperties { onExit = {
+            if (requestedFocusDirection in ARROWS || requestedFocusDirection == FocusDirection.Previous || requestedFocusDirection == FocusDirection.Next) {
+                gate.triedOut = true
+                cancelFocusChange()
+            }
+        } }
         .focusGroup()
 }
 

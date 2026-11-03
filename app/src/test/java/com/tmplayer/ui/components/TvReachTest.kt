@@ -68,7 +68,7 @@ abstract class TvReachFixture {
 
     protected fun Modifier.named(name: String) = onFocusChanged { if (it.isFocused) focused = name else if (focused == name) focused = null }
 
-    protected fun compose(glass: Boolean = false) {
+    protected fun compose(glass: Boolean = false, rtl: Boolean = false) {
         kotlinx.coroutines.runBlocking {
             com.tmplayer.data.SettingsStore(org.robolectric.RuntimeEnvironment.getApplication()).setThemeChoice(
                 if (glass) com.tmplayer.data.ThemeChoice.Glass else com.tmplayer.data.ThemeChoice.System)
@@ -79,6 +79,7 @@ abstract class TvReachFixture {
         activity = requireNotNull(controller).get()
         activity.setContent {
             TMPlayerTheme {
+                androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides (if (rtl) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr)) {
                 val isGlass = com.tmplayer.ui.theme.LocalGlassTheme.current
                 androidx.compose.runtime.SideEffect { glassDrawn = isGlass }
                 Box(Modifier.fillMaxSize().background(Tone.background).tvReachRoot()) {
@@ -115,6 +116,7 @@ abstract class TvReachFixture {
                             Box(Modifier.size(80.dp, 40.dp).focusRequester(keep).named("keep").focusable())
                         }
                     }
+                }
                 }
             }
         }
@@ -265,6 +267,36 @@ class TvReachGlassCardTest : TvReachFixture() {
         key(KeyEvent.KEYCODE_DPAD_LEFT)
         assertEquals("change", focused)
         key(KeyEvent.KEYCODE_DPAD_LEFT)
+        assertEquals("change", focused)
+
+        // Answered: the remote is back on the tile it was on.
+        cardShown = false
+        idle()
+        assertEquals("tile2", focused)
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], qualifiers = "w960dp-h540dp-land-television-night-xhdpi")
+class TvReachGlassRtlCardTest : TvReachFixture() {
+    @Test
+    fun askingCardHoldsTheRemoteAndGivesItBackToThePage() {
+        compose(glass = true, rtl = true)
+        bannerShown = false
+        idle()
+        tile[2].requestFocus()
+        idle()
+        assertEquals("tile2", focused)
+
+        cardShown = true
+        idle()
+        assertEquals("keep", focused)
+        // The arrows stay inside the card: Up does not reach the page behind it.
+        key(KeyEvent.KEYCODE_DPAD_UP)
+        assertEquals("keep", focused)
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        assertEquals("change", focused)
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
         assertEquals("change", focused)
 
         // Answered: the remote is back on the tile it was on.

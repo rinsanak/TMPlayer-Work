@@ -78,6 +78,7 @@ abstract class FastScrollerRenderTest {
         var glassDrawn = false
         activity.setContent {
             TMPlayerTheme {
+                androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides (if (out == "rtl") androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr)) {
                 val isGlass = com.tmplayer.ui.theme.LocalGlassTheme.current
                 androidx.compose.runtime.SideEffect { glassDrawn = isGlass }
                 // A fixed opaque fixture behind Glass keeps pixel comparisons local to the handle.
@@ -92,6 +93,7 @@ abstract class FastScrollerRenderTest {
                         }
                     }
                     FastScroller(state, label = { key -> "Episode ${(key as Int) + 1}" })
+                }
                 }
             }
         }
