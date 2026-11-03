@@ -12,6 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -44,13 +46,25 @@ abstract class GlassCardsRenderFixture {
         val activity = controller.get()
         var markDrawn = false
         var glassDrawn = false
+        var backgroundAlpha = 0f
+        var playInkAlpha = 0f
+        var playContrast = 0f
         try {
             activity.setContent {
                 TMPlayerTheme {
                     val glass = com.tmplayer.ui.theme.LocalGlassTheme.current
-                    androidx.compose.runtime.SideEffect { glassDrawn = glass }
+                    val background = Tone.background
+                    val ink = Tone.onHero
+                    val fill = Tone.hero.compositeOver(background)
+                    androidx.compose.runtime.SideEffect {
+                        glassDrawn = glass
+                        backgroundAlpha = background.alpha
+                        playInkAlpha = ink.alpha
+                        playContrast = (maxOf(ink.luminance(), fill.luminance()) + 0.05f) / (minOf(ink.luminance(), fill.luminance()) + 0.05f)
+                    }
                     Column(Modifier.fillMaxSize().background(Tone.background).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         PhoneHomeBrand(Modifier.fillMaxWidth(), false)
+                        HeroPill("Resume", com.tmplayer.ui.icons.TmIcons.Play, {})
                         com.tmplayer.ui.components.BrandLockup(modifier = Modifier.size(0.dp).graphicsLayer { alpha = 0f }, mark = { markDrawn = true })
                         ShelfTile(entry = ShelfEntry.File(MediaItem(chatId = 1, messageId = 1, fileId = 1, title = "Quiet Hills", fileName = "Quiet.Hills.2020.1080p.mkv", sizeBytes = 900_000_000, durationSec = 7200, mimeType = "video/mp4", thumbnailFileId = 0, miniThumbnail = null, date = 0)), poster = true,
                             watch = remember { SeriesWatch(point = { null }, finished = { false }) }, touch = !tv,
@@ -72,6 +86,10 @@ abstract class GlassCardsRenderFixture {
             walk(owner.semanticsOwner.unmergedRootSemanticsNode)
             assertTrue(texts.toString(), texts.any { "Quiet Hills" in it })
             assertTrue(texts.toString(), texts.any { "2020" in it })
+            assertTrue(texts.toString(), texts.contains("Resume"))
+            assertEquals("detail pages must cover the previous screen", 1f, backgroundAlpha, 0f)
+            assertEquals("Play text must never inherit transparent ink", 1f, playInkAlpha, 0f)
+            assertTrue("Play text contrast: $playContrast", playContrast >= 4.5f)
             assertFalse("Start Log belongs in Settings", texts.contains(L.logsSessionStart))
             assertFalse("Stop Log belongs in Settings", texts.contains(L.logsSessionStop))
             assertFalse("in-app branding must not draw an app icon", markDrawn)

@@ -209,7 +209,7 @@ fun TMPlayerTheme(content: @Composable () -> Unit) {
 
     // A television has no system light mode to follow, so "System" there means dark. Light and
     // Dark are the viewer's own answer, on either device: a television in a bright room is real.
-    val dark = choice.isDark(systemDark = systemDark || !touch)
+    val dark = choice == ThemeChoice.Glass || choice.isDark(systemDark = systemDark || !touch)
 
     // One scheme for both devices. The television has no wallpaper to take colours from, but
     // everything else about it is the phone's palette. Pure black is a switch under the theme and
@@ -229,7 +229,10 @@ fun TMPlayerTheme(content: @Composable () -> Unit) {
             .let { if (choice == ThemeChoice.Glass) it.copy(
                 primary = androidx.compose.ui.graphics.Color(0xFF75E4E5),
                 onPrimary = androidx.compose.ui.graphics.Color(0xFF071D27),
-                background = androidx.compose.ui.graphics.Color.Transparent,
+                background = androidx.compose.ui.graphics.Color(0xFF0A1422),
+                onBackground = androidx.compose.ui.graphics.Color(0xFFF2F6FC),
+                onSurface = androidx.compose.ui.graphics.Color(0xFFF2F6FC),
+                onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFCCD7E6),
                 surface = androidx.compose.ui.graphics.Color(0x9914273C),
                 surfaceContainer = androidx.compose.ui.graphics.Color(0xA51A2D46),
                 surfaceContainerLow = androidx.compose.ui.graphics.Color(0x99152237),

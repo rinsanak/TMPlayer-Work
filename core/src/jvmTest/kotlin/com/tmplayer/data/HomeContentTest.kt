@@ -4,6 +4,16 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class HomeContentTest {
+    @Test fun `RT uploader mark and ampersand copies from the screenshot form one card`() {
+        val names = listOf("Avarachan.and.Sons.2026.1080p.mkv", "RTAvarachan.and.Sons.2026.720p.mkv", "RTAvarachan.&.Sons.2026.1080p.mkv")
+        val copies = names.mapIndexed { i, name -> video((i + 21).toLong(), name) }
+        val rows = HomeContent.clean(listOf(HomeRow.Recent(copies.map { ShelfEntry.File(it) }, true)))
+        val entries = (rows.single() as HomeRow.Recent).entries
+        assertEquals(1, entries.size)
+        assertEquals(3, (entries.single() as ShelfEntry.File).item.versions.size)
+        assertEquals("Don't Trouble the Trouble", com.tmplayer.online.MetaQuery.of("RTDon't.Trouble.the.Trouble.2026.1080p.mkv")?.title)
+        assertEquals(com.tmplayer.online.MetaMatch.normalise("Don't Trouble the Trouble"), com.tmplayer.online.MetaMatch.normalise("Dont Trouble the Trouble"))
+    }
     @Test fun `attached channel handles keep the title and fold its quality copies`() {
         val one = video(11, "@CC_Quiet_Hills_2020_1080p.mkv")
         val two = video(12, "Quiet.Hills.2020.720p.mkv")

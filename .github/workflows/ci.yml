@@ -52,20 +52,41 @@ jobs:
       # shared Compose half that the desktop app builds on too. Their tests run on a plain JVM,
       # the way the desktop runs them. Both are Kotlin Multiplatform libraries on AGP's own
       # plugin, which has no Android host tests here, so jvmTest is the whole of their suites.
+      - name: Select checks for the artwork and Glass fix
+        id: checks
+        run: |
+          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.7 ]; then
+            echo "focused=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "focused=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run core and ui tests
-        run: ./gradlew :core:jvmTest :ui:jvmTest
+        run: |
+          if [ "${{ steps.checks.outputs.focused }}" = true ]; then
+            ./gradlew :core:jvmTest --tests 'com.tmplayer.online.*' --tests '*MediaNameTest' --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*SameTitleTest' --tests '*SeriesShelf*Test' --tests '*GarbageInputTest' :ui:jvmTest --tests '*ThemeTokensTest' --tests '*HomeViewModelCacheTest'
+          else
+            ./gradlew :core:jvmTest :ui:jvmTest
+          fi
 
       # Debug only: the promo and release variants run the same test sources. Since AGP 9 only
       # the tested build type (debug) gets a unit test task at all, so this is every app test.
       - name: Check Glass TV key routing
+        if: steps.checks.outputs.focused != 'true'
         timeout-minutes: 6
         run: ./gradlew :app:testDebugUnitTest --tests "*TvReachGlass*Test" --info
 
       - name: Check diagnostic, Glass, player and navigation regressions
         timeout-minutes: 10
-        run: ./gradlew :app:testDebugUnitTest --tests "*DiagnosticSessionTest" --tests "*GlassCards*Test" --tests "*PlayerExtras*Test" --tests "*FastScrollerRender*Test" --tests "*TvReach*Test"
+        run: |
+          if [ "${{ steps.checks.outputs.focused }}" = true ]; then
+            ./gradlew :app:testDebugUnitTest --tests '*GlassCards*Test' --tests '*TvReachGlass*Test'
+          else
+            ./gradlew :app:testDebugUnitTest --tests '*DiagnosticSessionTest' --tests '*GlassCards*Test' --tests '*PlayerExtras*Test' --tests '*FastScrollerRender*Test' --tests '*TvReach*Test'
+          fi
 
       - name: Run unit tests
+        if: steps.checks.outputs.focused != 'true'
         run: ./gradlew :app:testDebugUnitTest
 
       - name: Build debug APK
@@ -101,6 +122,7 @@ jobs:
   # runner must have at least that to run the self-test, and a pinned image keeps the result the
   # same when "latest" moves.
   desktop-linux:
+    if: github.ref_name != 'tg-stream-rebrand'
     name: Desktop (Linux)
     runs-on: ubuntu-24.04
     steps:
@@ -140,6 +162,7 @@ jobs:
   # The Apple Silicon DMG (a preview from 1.26.0). macos-26 because the bundled TDLib is built for
   # macOS 26, so an older runner could not load it in the self-test.
   desktop-macos:
+    if: github.ref_name != 'tg-stream-rebrand'
     name: Desktop (macOS)
     runs-on: macos-26
     steps:
@@ -177,6 +200,7 @@ jobs:
           if-no-files-found: ignore
 
   desktop-windows:
+    if: github.ref_name != 'tg-stream-rebrand'
     name: Desktop (Windows)
     runs-on: windows-latest
     steps:

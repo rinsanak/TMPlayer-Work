@@ -61,6 +61,7 @@ class OnlineMetadata(
     private val tmdb = TmdbApi(http, RateLimiter(TmdbApi.GAP_MS, now, sleep), userAgent)
     private val tvmaze = TvMazeApi(http, RateLimiter(TvMazeApi.GAP_MS, now, sleep), userAgent)
     private val anilist = AniListApi(http, RateLimiter(AniListApi.GAP_MS, now, sleep), userAgent)
+    private val imdbPosters = ImdbPosterApi(http, RateLimiter(350L, now, sleep), userAgent)
     private val omdb = OmdbApi(http, RateLimiter(OmdbApi.GAP_MS, now, sleep), userAgent)
     private val wikidata = WikidataApi(http, RateLimiter(WikidataApi.GAP_MS, now, sleep), userAgent)
     /**
@@ -217,6 +218,15 @@ class OnlineMetadata(
                 Outcome.Blocked -> blocked = true
             }
         }
+        // A build without a TMDB key still needs genuine film posters. Public suggestions
+        // are accepted only on exact title and release year, never the first popular result.
+        if (query.kind == MetaKind.Film) {
+            when (val fallback = imdbLookup(query)) {
+                is Outcome.Found -> return MetaResult.Found(fallback.info) to true
+                Outcome.Blocked -> blocked = true
+                Outcome.Nothing -> Unit
+            }
+        }
         return if (blocked) MetaResult.Unavailable to false else MetaResult.NoMatch to true
     }
 
@@ -233,6 +243,7 @@ class OnlineMetadata(
         val s = store.now
         return when (provider) {
             MetaProvider.Tmdb -> if (!tmdbUsable(s)) Outcome.Blocked else tmdbLookup(activeKey(s), query, lang)
+            MetaProvider.Imdb -> imdbLookup(query)
             MetaProvider.TvMaze -> tvmazeLookup(query)
             MetaProvider.AniList -> anilistLookup(query)
         }
@@ -378,6 +389,20 @@ class OnlineMetadata(
         return found?.let { SearchOutcome.Found(it) } ?: SearchOutcome.None
     }
 
+    private suspend fun imdbLookup(query: MetaQuery): Outcome {
+        val year = query.year ?: return Outcome.Nothing
+        if (query.kind != MetaKind.Film || paused(MetaProvider.Imdb)) return Outcome.Nothing
+        val reply = retrying { imdbPosters.search(query.title) }
+        trouble(MetaProvider.Imdb, reply)?.let { return it }
+        val wanted = MetaMatch.normalise(query.title)
+        val matches = (reply as MetaReply.Ok).value.filter { candidate ->
+            candidate.year == year && candidate.names.any { MetaMatch.normalise(it) == wanted }
+        }
+        val candidate = matches.distinctBy { it.id }.singleOrNull() ?: return Outcome.Nothing
+        return Outcome.Found(MetaInfo(MetaProvider.Imdb, candidate.id, MetaKind.Film,
+            candidate.names.firstOrNull().orEmpty(), year = candidate.year, posterUrl = candidate.posterUrl))
+    }
+
     private suspend fun tvmazeLookup(query: MetaQuery): Outcome {
         if (query.kind != MetaKind.Show) return Outcome.Nothing
         val reply = retrying { tvmaze.show(query.title) }
@@ -452,7 +477,7 @@ class OnlineMetadata(
                 (reply as MetaReply.Ok).value to true
             }
             // AniList lists no episodes; the show's own words stand for each one.
-            MetaProvider.AniList -> null to true
+            MetaProvider.AniList, MetaProvider.Imdb -> null to true
         }
     }
 
@@ -500,6 +525,7 @@ class OnlineMetadata(
             cache.skipTimes(key)?.let { return@withLock it }
             val reply = when (info.provider) {
                 MetaProvider.Tmdb -> skipApi.theIntroDb(info.id, null, null, season, episode)
+                MetaProvider.Imdb -> skipApi.theIntroDb(null, info.id, null, season, episode)
                 MetaProvider.TvMaze -> {
                     val ids = providerExtras(info) ?: return@withLock emptyList()
                     if (ids.imdbId == null && ids.tvdbId == null) return@withLock emptyList()
@@ -782,6 +808,7 @@ class OnlineMetadata(
                 val k = key
                 reply = retrying { tmdb.extras(k, info.kind == MetaKind.Film, info.id, lang, region()) }
             }
+            MetaProvider.Imdb -> reply = MetaReply.Ok(MetaExtras(imdbId = info.id))
             MetaProvider.TvMaze -> reply = retrying { tvmaze.extras(info.id) }
             MetaProvider.AniList -> reply = retrying { anilist.extras(info.id) }
         }
@@ -859,7 +886,7 @@ class OnlineMetadata(
                     }
                     found
                 }
-                MetaProvider.AniList -> null
+                MetaProvider.AniList, MetaProvider.Imdb -> null
             }
         }
     }
@@ -1072,7 +1099,7 @@ class OnlineMetadata(
         private const val CARD_SCORE_ENTRIES = 4_096
 
         /** Where posters may come from. Nothing else is fetched, whatever an answer says. */
-        val IMAGE_HOSTS = setOf("image.tmdb.org", "static.tvmaze.com", "s4.anilist.co", "img.anili.st")
+        val IMAGE_HOSTS = setOf("image.tmdb.org", "static.tvmaze.com", "s4.anilist.co", "img.anili.st", "m.media-amazon.com")
 
         /** Lookups are on, in a build that set the feature up. */
         val enabled: Boolean get() = current?.store?.now?.enabled == true

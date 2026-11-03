@@ -109,12 +109,12 @@ object Tone {
      */
     val hero: Color
         @Composable @ReadOnlyComposable get() =
-            M3.colorScheme.onSurface
+            if (LocalGlassTheme.current) Color(0xB32A3C57) else M3.colorScheme.onSurface
 
     /** What to write on [hero]. */
     val onHero: Color
         @Composable @ReadOnlyComposable get() =
-            M3.colorScheme.background
+            if (LocalGlassTheme.current) Color(0xFFF2F6FC) else M3.colorScheme.background
 
     /** Hairlines and borders. */
     val outline: Color

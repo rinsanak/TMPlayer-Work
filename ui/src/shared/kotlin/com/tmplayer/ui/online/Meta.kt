@@ -399,9 +399,9 @@ fun OnlineArt(item: MediaItem, modifier: Modifier = Modifier, content: @Composab
     val listed = if (!home && number != null) rememberSeasonEpisodes(meta, season) else null
     val url = when {
         meta == null -> null
-        home -> meta.wideUrl
+        home -> meta.wideUrl ?: meta.posterUrl
         meta.kind == MetaKind.Show -> number?.let { com.tmplayer.online.EpisodeNames.listed(season, it, listed)?.stillUrl }
-        else -> meta.backdropUrl
+        else -> meta.backdropUrl ?: meta.posterUrl
     }
     // On a television the video's own picture is dropped once the online one is fully drawn over
     // it: an opaque picture covers it, and every tile drawing (and keeping decoded) both was the

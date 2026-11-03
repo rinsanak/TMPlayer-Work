@@ -161,11 +161,12 @@ fun MediaDetailScreen(
     // A record's item (opened from Continue watching, say) carries no thumbnail: its picture is
     // looked up, as the card it was opened from did.
     val art = rememberArtItem(item)
-    val source = remember(item.id, art, cover, meta?.wideUrl) { BackdropSource(art.miniThumbnail, art.thumbnailFileId, cover, meta?.wideUrl) }
+    val source = remember(item.id, art, cover, meta?.wideUrl, meta?.posterUrl) { BackdropSource(art.miniThumbnail, art.thumbnailFileId, cover, meta?.wideUrl, meta?.posterUrl) }
     val page = DetailPage(item, chatTitle, watched, finished, rows, meta, extras, source, firstAction, onOpenItem, bookmarks, onOpenBookmark, onPickCopy, copyStarted, metaState, extrasState)
     // Decided on the first frame and kept for the visit, the phone turned included.
     val holds = rememberHolds(page, firstPaint)
     BoxWithConstraints(modifier.fillMaxSize().background(Tone.background)) {
+        if (com.tmplayer.ui.theme.LocalGlassTheme.current) com.tmplayer.ui.components.GlassArtworkBackdrop(source, Modifier.matchParentSize())
         val wide = maxWidth > maxHeight
         // Until the first frame only the page's own ground and its way out, while the caches are asked.
         if (firstPaint) {

@@ -61,6 +61,7 @@ fun MetaExtras.withProviderScore(provider: MetaProvider): MetaExtras {
     val rating = rating ?: return this
     val score = when (provider) {
         MetaProvider.Tmdb -> MetaScore(ScoreSource.Tmdb, rating)
+        MetaProvider.Imdb -> MetaScore(ScoreSource.Imdb, rating)
         MetaProvider.TvMaze -> MetaScore(ScoreSource.TvMaze, rating)
         MetaProvider.AniList -> MetaScore(ScoreSource.AniList, kotlin.math.round(rating * 10))
     }

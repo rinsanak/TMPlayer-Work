@@ -514,8 +514,8 @@ class OnlineMetadataTest {
     @Test
     fun aMissKeptBeforeTheEnglishSearchIsAskedAgain() {
         val q = query("Amelie.2001.mkv")
-        assertEquals("Film|amelie|2001||||en-US+title2", q.cacheKey("en-US"))
-        assertEquals("Film|amelie|2001||||ar+en+title2", q.cacheKey("ar"))
+        assertEquals("Film|amelie|2001||||en-US+posters3", q.cacheKey("en-US"))
+        assertEquals("Film|amelie|2001||||ar+en+posters3", q.cacheKey("ar"))
     }
 
     @Test

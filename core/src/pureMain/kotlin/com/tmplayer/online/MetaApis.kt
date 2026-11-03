@@ -5,6 +5,32 @@ import com.tmplayer.json.JSONObject
 import com.tmplayer.platform.IOException
 import com.tmplayer.platform.formEncode
 
+/** Public title suggestions as a narrowly matched poster fallback when TMDB cannot answer. */
+class ImdbPosterApi(private val http: HttpTransport, private val rate: RateLimiter, private val userAgent: String) {
+    suspend fun search(title: String): MetaReply<List<MetaCandidate>> {
+        if (title.isBlank() || title.length > 160) return MetaReply.Ok(emptyList())
+        rate.acquire()
+        val query = enc(title).replace("+", "%20")
+        return call(http, HttpRequest("GET", "https://v3.sg.media-imdb.com/suggestion/x/$query.json", mapOf("User-Agent" to userAgent)), 60_000L) { json ->
+            objects(json.optJSONArray("d")).take(20).mapNotNull { hit ->
+                val id = hit.optString("id").takeIf { Regex("tt[0-9]{5,12}").matches(it) } ?: return@mapNotNull null
+                if (hit.optString("qid") != "movie") return@mapNotNull null
+                val name = hit.optString("l").takeIf { it.isNotBlank() && it.length <= 200 } ?: return@mapNotNull null
+                val year = hit.optInt("y").takeIf { it in 1850..2200 } ?: return@mapNotNull null
+                val image = hit.optJSONObject("i") ?: return@mapNotNull null
+                val url = image.optString("imageUrl")
+                if (url.length > 2048 || !POSTER.matches(url)) return@mapNotNull null
+                val sized = url.substringBefore("._V1_") + "._V1_QL75_UX500_.jpg"
+                MetaCandidate(id, listOf(name), year, "", sized, null)
+            }
+        }
+    }
+
+    companion object {
+        private val POSTER = Regex("""https://m\.media-amazon\.com/images/M/[A-Za-z0-9@._%+\-]+\._V1_.*\.jpg""")
+    }
+}
+
 /** A metadata provider's answer, sorted into what [OnlineMetadata] has to tell apart. */
 sealed interface MetaReply<out T> {
     data class Ok<T>(val value: T) : MetaReply<T>

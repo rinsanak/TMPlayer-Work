@@ -269,6 +269,9 @@ class GarbageInputTest {
             val limiter = RateLimiter(0, { 0L }, {})
             val shown = runCatching { answer().text }.getOrElse { "IOException" }
             val tmdb = TmdbApi(http, limiter, "t")
+            survive("ImdbPosterApi", shown) {
+                runBlocking { com.tmplayer.online.ImdbPosterApi(http, limiter, "t").search("Title") }
+            }
             survive("TmdbApi", shown) {
                 runBlocking {
                     tmdb.searchMovie("k", "q", null, "en")

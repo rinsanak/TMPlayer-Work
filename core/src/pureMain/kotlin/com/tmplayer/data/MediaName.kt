@@ -516,7 +516,7 @@ object MediaName {
             }
         }
         // A fansub group's tag, "[SubsPlease] Show - 02", is a signature in brackets.
-        val unsigned = withoutSymbols.replace(GROUP_TAG, "")
+        val unsigned = withoutSymbols.replace(GROUP_TAG, "").replace(RT_SIGNATURE, "")
         return unsigned
             .replace(HANDLE) {
                 handleOf(it.value, unsigned.substring(0, it.range.first), unsigned.substring(it.range.last + 1))
@@ -777,6 +777,9 @@ object MediaName {
     private const val ZWJ = '\u200d'
 
     /** An uploader's Telegram handle, wherever in the name they put it. "@CC" is one. */
+    // RT is the uploader mark seen attached to title-case names in this library.
+    private val RT_SIGNATURE = Regex("""^\s*RT(?=[A-Z][a-z])""")
+
     private val HANDLE = Regex("""@[A-Za-z0-9_]{2,}""")
 
     /**

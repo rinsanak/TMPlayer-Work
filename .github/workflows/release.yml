@@ -67,6 +67,7 @@ jobs:
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
         run: |
           test -n "$TG_API_ID" && test -n "$TG_API_HASH" || { echo "::error::Set TG_API_ID and TG_API_HASH first"; exit 1; }
+          if [ -n "$TMDB_API_KEY" ]; then echo "TMDB artwork key: configured"; else echo "TMDB artwork key: missing; exact IMDb poster fallback enabled"; fi
           printf 'TG_API_ID=%s\nTG_API_HASH=%s\nMSONE_GATEWAY_KEY=%s\nOPENSUBTITLES_API_KEY=%s\nTMDB_API_KEY=%s\nOMDB_API_KEY=%s\n' "$TG_API_ID" "$TG_API_HASH" "$MSONE_GATEWAY_KEY" "$OPENSUBTITLES_API_KEY" "$TMDB_API_KEY" "$OMDB_API_KEY" > local.properties
 
       - name: Install native build tools

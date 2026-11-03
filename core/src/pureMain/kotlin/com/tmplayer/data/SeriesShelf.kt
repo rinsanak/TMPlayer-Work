@@ -162,7 +162,7 @@ object SeriesShelf {
      * script) still goes through the expressions, which read it as one character rather than two.
      */
     fun keyOf(title: String): String {
-        val lower = title.lowercase()
+        val lower = title.lowercase().replace("&", " and ").replace("’", "").replace("'", "")
         // Most names are a key already, or need nothing but lower case: no copy made for those.
         var key = true
         for (index in lower.indices) {

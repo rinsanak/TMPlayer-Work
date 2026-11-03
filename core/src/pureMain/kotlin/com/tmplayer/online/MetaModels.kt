@@ -7,6 +7,7 @@ import com.tmplayer.json.JSONObject
 /** Where a poster and an overview came from. Each one is credited where its words appear. */
 enum class MetaProvider(val label: String) {
     Tmdb("TMDB"),
+    Imdb("IMDb"),
     TvMaze("TVmaze"),
     AniList("AniList"),
 }
@@ -55,7 +56,7 @@ data class MetaQuery(
         if (wantsEpisode) "${season ?: 1}x$episode" else "",
         if (anime) "anime" else "",
         tmdbId?.toString().orEmpty(),
-        (if (language.startsWith("en")) language else "$language+en") + "+title2",
+        (if (language.startsWith("en")) language else "$language+en") + "+posters3",
     ).joinToString("|")
 
     companion object {
@@ -207,7 +208,7 @@ object MetaMatch {
 
     /** Lower case, accents and punctuation gone, "&" as "and", a leading article dropped. */
     fun normalise(title: String): String {
-        val plain = stripCombiningMarks(title.lowercase()).replace(MARKS, "")
+        val plain = stripCombiningMarks(title.lowercase().replace("’", "").replace("'", "")).replace(MARKS, "")
         return plain.replace("&", " and ").replace(NOT_WORD, " ").trim().replace(ARTICLE, "")
     }
 

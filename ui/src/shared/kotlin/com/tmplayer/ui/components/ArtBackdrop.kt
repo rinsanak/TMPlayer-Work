@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.drawBehind
 import com.tmplayer.data.Thumbnails
 import com.tmplayer.data.decodesFullSize
 import androidx.compose.runtime.mutableIntStateOf
@@ -29,6 +30,22 @@ import com.tmplayer.online.OnlineMetadata
 import com.tmplayer.ui.theme.Motion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+/** A blurred copy of this title's artwork, with an opaque base so the previous page never bleeds through. */
+@Composable
+fun GlassArtworkBackdrop(source: BackdropSource, modifier: Modifier = Modifier) {
+    val art = rememberBackdropArt(source, 500)
+    val picture = art?.picture ?: art?.field
+    val softened by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, picture) {
+        value = picture?.let { withContext(Dispatchers.Default) { runCatching { com.tmplayer.data.MiniBlur.soften(it) }.getOrNull() } }
+    }
+    Box(modifier.then(Modifier.drawBehind { drawRect(androidx.compose.ui.graphics.Color(0xFF0A1422)) })) {
+        softened?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, filterQuality = FilterQuality.Low, modifier = Modifier.fillMaxSize()) }
+        Box(Modifier.fillMaxSize().drawBehind {
+            drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color(0x990A1422), androidx.compose.ui.graphics.Color(0xE60A1422))))
+        })
+    }
+}
 
 /**
  * A large picture behind a hero or a page, from the best art a video has.
