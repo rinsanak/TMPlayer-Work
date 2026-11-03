@@ -110,6 +110,41 @@ jobs:
               --android-only --out dist/latest.json
           fi
 
+      - name: Verify APK identity and update manifest
+        run: |
+          APK="dist/TG-Stream-${{ steps.version.outputs.name }}-universal.apk"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee apk-verification.txt
+          grep -Fq "Signer #1 certificate SHA-256 digest: 3580acc62809ab114ccb00d567d24fe3b2aee2cc4f1aa02e2d5242ae27119686" apk-verification.txt
+          "$(dirname "$APKSIGNER")/aapt2" dump badging "$APK" > apk-badging.txt
+          grep -E "^(package:|sdkVersion:|targetSdkVersion:|native-code:)" apk-badging.txt
+          python3 - "$APK" "${{ steps.version.outputs.name }}" "${{ steps.version.outputs.code }}" <<'PY'
+          import hashlib, json, pathlib, sys, zipfile
+          apk = pathlib.Path(sys.argv[1])
+          version, code = sys.argv[2:]
+          badging = pathlib.Path("apk-badging.txt").read_text()
+          assert "package: name='com.rinsanak.tgstream'" in badging, "Unexpected application ID"
+          assert f"versionName='{version}'" in badging and f"versionCode='{code}'" in badging, "Unexpected APK version"
+          assert "sdkVersion:'23'" in badging and "targetSdkVersion:'35'" in badging, "Unexpected SDK range"
+          with zipfile.ZipFile(apk) as archive:
+              abis = {name.split("/")[1] for name in archive.namelist() if name.startswith("lib/") and name.endswith(".so")}
+          assert {"arm64-v8a", "armeabi-v7a"} <= abis, abis
+          feed_path = pathlib.Path("dist/latest.json")
+          if feed_path.exists():
+              feed = json.loads(feed_path.read_text())
+              asset = feed["assets"]["android-universal"]
+              digest = hashlib.sha256()
+              with apk.open("rb") as stream:
+                  for block in iter(lambda: stream.read(1048576), b""):
+                      digest.update(block)
+              assert feed["version"] == version and str(feed["versionCode"]) == code
+              assert asset["size"] == apk.stat().st_size and asset["sha256"] == digest.hexdigest()
+              assert asset["url"].endswith("/v" + version + "/" + apk.name)
+              print("Verified APK SHA-256:", digest.hexdigest())
+          print("Verified package, version, SDK range, ARM ABIs and update manifest")
+          PY
+
       - name: Remove signing material
         if: always()
         run: rm -f release.keystore keystore.properties local.properties

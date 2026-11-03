@@ -49,14 +49,31 @@ import java.time.Duration
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-class PlayerExtrasRenderTest {
+abstract class PlayerExtrasRenderFixture {
+
+    private val activities = mutableListOf<org.robolectric.android.controller.ActivityController<out android.app.Activity>>()
+    private var previousReduced = false
+
+    @org.junit.Before
+    fun setUp() {
+        previousReduced = com.tmplayer.ui.theme.Motion.reduced
+        com.tmplayer.ui.theme.Motion.reduced = true
+    }
 
     @After
     fun tearDown() {
+        activities.asReversed().forEach { it.pause().stop().destroy() }
+        activities.clear()
         FormFactor.override(false)
+        com.tmplayer.ui.theme.Motion.reduced = previousReduced
     }
 
-    private fun idle(ms: Long = 1000) {
+    private fun <T : android.app.Activity> track(controller: org.robolectric.android.controller.ActivityController<T>): org.robolectric.android.controller.ActivityController<T> {
+        activities += controller
+        return controller
+    }
+
+    protected fun idle(ms: Long = 1000) {
         androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
         var left = ms
         while (left > 0) {
@@ -65,14 +82,14 @@ class PlayerExtrasRenderTest {
         }
     }
 
-    private fun save(bitmap: Bitmap, name: String) {
+    protected fun save(bitmap: Bitmap, name: String) {
         val file = File("../build/device-test/review/$name").absoluteFile
         file.parentFile?.mkdirs()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         assertTrue(file.length() > 0)
     }
 
-    private fun shot(activity: ComponentActivity, name: String, dialog: Boolean) {
+    protected fun shot(activity: ComponentActivity, name: String, dialog: Boolean) {
         val root = activity.window.decorView
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -87,14 +104,14 @@ class PlayerExtrasRenderTest {
 
     // ---- the speed sheet ----------------------------------------------------------------------
 
-    private fun speedSheet(tv: Boolean, name: String, presses: Int = 0, faster: Boolean = true): Float {
+    protected fun speedSheet(tv: Boolean, name: String, presses: Int = 0, faster: Boolean = true): Float {
         FormFactor.override(tv)
         // Stepped before the sheet opens, as presses would leave it: the figure and the buttons'
         // ends are what the picture is for.
         var start = 1.35f
         repeat(presses) { start = PlaybackSpeed.fine(start, up = faster) }
         var speed by mutableStateOf(start)
-        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        val activity = track(Robolectric.buildActivity(ComponentActivity::class.java).setup()).get()
         activity.setContent {
             TMPlayerTheme {
                 Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF203040))) {
@@ -114,37 +131,19 @@ class PlayerExtrasRenderTest {
         return speed
     }
 
-    @Test
-    @Config(sdk = [35], qualifiers = "w411dp-h891dp-port-night-xhdpi")
-    fun speedPhoneUpright() {
-        speedSheet(tv = false, name = "extras-speed-phone.png")
-    }
 
-    @Test
-    @Config(sdk = [35], qualifiers = "w891dp-h411dp-land-night-xhdpi")
-    fun speedPhoneSideways() {
-        assertEquals(1.45f, speedSheet(tv = false, name = "extras-speed-phone-land.png", presses = 2))
-    }
 
-    @Test
-    @Config(sdk = [35], qualifiers = "w891dp-h411dp-land-notnight-xhdpi")
-    fun speedPhoneAtTheTop() {
-        // Up to 4x: plus greys out, minus still works.
-        assertEquals(4f, speedSheet(tv = false, name = "extras-speed-phone-max.png", presses = 80))
-    }
 
-    @Test
-    // Taller than a television, so the whole list is in the picture rather than scrolled.
-    @Config(sdk = [35], qualifiers = "w960dp-h1000dp-land-night-xhdpi")
-    fun speedTelevision() {
-        speedSheet(tv = true, name = "extras-speed-tv.png")
-    }
+
+
+
+
 
     // ---- the failure sheet --------------------------------------------------------------------
 
-    private fun errorSheet(tv: Boolean, name: String) {
+    protected fun errorSheet(tv: Boolean, name: String) {
         FormFactor.override(tv)
-        val activity = Robolectric.buildActivity(FragmentActivity::class.java).setup().get()
+        val activity = track(Robolectric.buildActivity(FragmentActivity::class.java).setup()).get()
         // The player's own theme, as the manifest gives PlayerActivity, so the buttons are its buttons.
         activity.setTheme(R.style.Theme_TMPlayer_Player)
         activity.setContentView(R.layout.activity_player)
@@ -200,16 +199,12 @@ class PlayerExtrasRenderTest {
         shot(activity, name, dialog = false)
     }
 
-    @Test
-    @Config(sdk = [35], qualifiers = "w411dp-h891dp-port-night-xhdpi")
-    fun errorSheetPhone() = errorSheet(tv = false, name = "extras-error-phone.png")
 
-    @Test
-    @Config(sdk = [35], qualifiers = "w960dp-h540dp-land-night-xhdpi")
-    fun errorSheetTelevision() = errorSheet(tv = true, name = "extras-error-tv.png")
+
+
 
     /** The title is not cut short, and no button label wraps inside its pill. */
-    private fun assertWordsWhole(title: TextView, buttons: List<TextView>) {
+    protected fun assertWordsWhole(title: TextView, buttons: List<TextView>) {
         val titleLayout = title.layout
         for (line in 0 until titleLayout.lineCount) {
             assertEquals("\"${title.text}\" is not cut short", 0, titleLayout.getEllipsisCount(line))
@@ -226,14 +221,14 @@ class PlayerExtrasRenderTest {
      * centres the row. A television keeps the stack. [askedSideways] is the player having asked for
      * landscape, which is what keeps the phone that reports a portrait window side by side.
      */
-    private fun stallSheet(
+    protected fun stallSheet(
         tv: Boolean,
         name: String,
         expected: StatusSheetShape.Shape,
         askedSideways: Boolean = false,
     ) {
         FormFactor.override(tv)
-        val activity = Robolectric.buildActivity(FragmentActivity::class.java).setup().get()
+        val activity = track(Robolectric.buildActivity(FragmentActivity::class.java).setup()).get()
         activity.setTheme(R.style.Theme_TMPlayer_Player)
         activity.setContentView(R.layout.activity_player)
         val overlay = activity.findViewById<View>(R.id.status_overlay)
@@ -292,33 +287,18 @@ class PlayerExtrasRenderTest {
         shot(activity, name, dialog = false)
     }
 
-    @Test
-    @Config(sdk = [35], qualifiers = "w873dp-h393dp-land-night-xxhdpi")
-    fun stallSheetPhoneSideways() =
-        stallSheet(tv = false, name = "extras-stall-phone-sideways.png", expected = StatusSheetShape.Shape.SideBySide)
+
 
     /** The phone that reports a portrait window on a landscape panel, with the player asking for landscape. */
-    @Test
-    @Config(sdk = [35], qualifiers = "w393dp-h873dp-port-night-xxhdpi")
-    fun stallSheetPhoneAskedSideways() = stallSheet(
-        tv = false,
-        name = "extras-stall-phone-asked-sideways.png",
-        expected = StatusSheetShape.Shape.SideBySide,
-        askedSideways = true,
-    )
 
-    @Test
-    @Config(sdk = [35], qualifiers = "w393dp-h873dp-port-night-xxhdpi")
-    fun stallSheetPhoneUpright() =
-        stallSheet(tv = false, name = "extras-stall-phone-upright.png", expected = StatusSheetShape.Shape.Stacked)
 
-    @Test
-    @Config(sdk = [35], qualifiers = "w960dp-h540dp-land-night-xhdpi")
-    fun stallSheetTelevision() = stallSheet(tv = true, name = "extras-stall-tv.png", expected = StatusSheetShape.Shape.Tv)
+
+
+
 
     // ---- the frame saved answer and the fine scrub ---------------------------------------------
 
-    private val player = Proxy.newProxyInstance(Player::class.java.classLoader, arrayOf(Player::class.java)) { _, method, _ ->
+    protected val player = Proxy.newProxyInstance(Player::class.java.classLoader, arrayOf(Player::class.java)) { _, method, _ ->
         when (method.name) {
             "getDuration" -> 2_634_000L
             "getCurrentPosition" -> 1_260_000L
@@ -334,9 +314,9 @@ class PlayerExtrasRenderTest {
         }
     } as Player
 
-    private fun picture(build: (FragmentActivity, FrameLayout) -> Unit): FragmentActivity {
+    protected fun picture(build: (FragmentActivity, FrameLayout) -> Unit): FragmentActivity {
         FormFactor.override(false)
-        val activity = Robolectric.buildActivity(FragmentActivity::class.java).setup().get()
+        val activity = track(Robolectric.buildActivity(FragmentActivity::class.java).setup()).get()
         val root = FrameLayout(activity).apply {
             id = R.id.player_root
             setBackgroundColor(Color.rgb(0x20, 0x30, 0x40))
@@ -347,28 +327,14 @@ class PlayerExtrasRenderTest {
         return activity
     }
 
-    private fun drawWindow(activity: FragmentActivity, name: String) {
+    protected fun drawWindow(activity: FragmentActivity, name: String) {
         val decor = activity.window.decorView
         val bitmap = Bitmap.createBitmap(decor.width, decor.height, Bitmap.Config.ARGB_8888)
         decor.draw(Canvas(bitmap))
         save(bitmap, name)
     }
 
-    @Test
-    @Config(sdk = [35], qualifiers = "w891dp-h411dp-land-night-xhdpi")
-    fun frameSavedAndSwipeScrub() {
-        var feedback: PlayerFeedback? = null
-        val activity = picture { _, root ->
-            feedback = PlayerFeedback(root, null).also {
-                it.offer(L.playerFrameSaved, L.commonShare, tick = true) {}
-            }
-        }
-        drawWindow(activity, "extras-frame-saved.png")
-        feedback?.clear()
-        feedback?.scrub(deltaMs = 42_000, targetMs = 1_302_000, durationMs = 2_634_000, rate = 0.5f)
-        idle(600)
-        drawWindow(activity, "extras-swipe-half.png")
-    }
+
 
     // ---- the row: picture shape on the bar ------------------------------------------------------
 
@@ -377,7 +343,7 @@ class PlayerExtrasRenderTest {
      * so a crowded row shows its worst. [rtl] lays the window out right to left (the row itself
      * stays left to right, as media controls do).
      */
-    private fun row(tv: Boolean, name: String, rtl: Boolean = false, focus: Int? = null, shape: VideoScale = VideoScale.Fit): PlayerControls {
+    protected fun row(tv: Boolean, name: String, rtl: Boolean = false, focus: Int? = null, shape: VideoScale = VideoScale.Fit): PlayerControls {
         FormFactor.override(tv)
         var controls: PlayerControls? = null
         val activity = picture { activity, root ->
@@ -411,6 +377,139 @@ class PlayerExtrasRenderTest {
         return requireNotNull(controls)
     }
 
+
+
+
+
+
+
+
+
+
+}
+
+// Each native render starts with a fresh worker and frame clock (forkEvery = 1).
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasSpeedPhoneUprightTest : PlayerExtrasRenderFixture() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w411dp-h891dp-port-night-xhdpi")
+    fun speedPhoneUpright() {
+        speedSheet(tv = false, name = "extras-speed-phone.png")
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasSpeedPhoneSidewaysTest : PlayerExtrasRenderFixture() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w891dp-h411dp-land-night-xhdpi")
+    fun speedPhoneSideways() {
+        assertEquals(1.45f, speedSheet(tv = false, name = "extras-speed-phone-land.png", presses = 2))
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasSpeedPhoneAtTheTopTest : PlayerExtrasRenderFixture() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w891dp-h411dp-land-notnight-xhdpi")
+    fun speedPhoneAtTheTop() {
+        // Up to 4x: plus greys out, minus still works.
+        assertEquals(4f, speedSheet(tv = false, name = "extras-speed-phone-max.png", presses = 80))
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasSpeedTelevisionTest : PlayerExtrasRenderFixture() {
+    @Test
+    // Taller than a television, so the whole list is in the picture rather than scrolled.
+    @Config(sdk = [35], qualifiers = "w960dp-h1000dp-land-night-xhdpi")
+    fun speedTelevision() {
+        speedSheet(tv = true, name = "extras-speed-tv.png")
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasErrorSheetPhoneTest : PlayerExtrasRenderFixture() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w411dp-h891dp-port-night-xhdpi")
+    fun errorSheetPhone() = errorSheet(tv = false, name = "extras-error-phone.png")
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasErrorSheetTelevisionTest : PlayerExtrasRenderFixture() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w960dp-h540dp-land-night-xhdpi")
+    fun errorSheetTelevision() = errorSheet(tv = true, name = "extras-error-tv.png")
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasStallSheetPhoneSidewaysTest : PlayerExtrasRenderFixture() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w873dp-h393dp-land-night-xxhdpi")
+    fun stallSheetPhoneSideways() =
+        stallSheet(tv = false, name = "extras-stall-phone-sideways.png", expected = StatusSheetShape.Shape.SideBySide)
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasStallSheetPhoneAskedSidewaysTest : PlayerExtrasRenderFixture() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w393dp-h873dp-port-night-xxhdpi")
+    fun stallSheetPhoneAskedSideways() = stallSheet(
+        tv = false,
+        name = "extras-stall-phone-asked-sideways.png",
+        expected = StatusSheetShape.Shape.SideBySide,
+        askedSideways = true,
+    )
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasStallSheetPhoneUprightTest : PlayerExtrasRenderFixture() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w393dp-h873dp-port-night-xxhdpi")
+    fun stallSheetPhoneUpright() =
+        stallSheet(tv = false, name = "extras-stall-phone-upright.png", expected = StatusSheetShape.Shape.Stacked)
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasStallSheetTelevisionTest : PlayerExtrasRenderFixture() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w960dp-h540dp-land-night-xhdpi")
+    fun stallSheetTelevision() = stallSheet(tv = true, name = "extras-stall-tv.png", expected = StatusSheetShape.Shape.Tv)
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasFrameSavedAndSwipeScrubTest : PlayerExtrasRenderFixture() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w891dp-h411dp-land-night-xhdpi")
+    fun frameSavedAndSwipeScrub() {
+        var feedback: PlayerFeedback? = null
+        val activity = picture { _, root ->
+            feedback = PlayerFeedback(root, null).also {
+                it.offer(L.playerFrameSaved, L.commonShare, tick = true) {}
+            }
+        }
+        drawWindow(activity, "extras-frame-saved.png")
+        feedback?.clear()
+        feedback?.scrub(deltaMs = 42_000, targetMs = 1_302_000, durationMs = 2_634_000, rate = 0.5f)
+        idle(600)
+        drawWindow(activity, "extras-swipe-half.png")
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasRowPhoneSidewaysTest : PlayerExtrasRenderFixture() {
     @Test
     @Config(sdk = [35], qualifiers = "w891dp-h411dp-land-night-xhdpi")
     fun rowPhoneSideways() {
@@ -418,13 +517,21 @@ class PlayerExtrasRenderTest {
         assertTrue("picture shape on the row", controls.shapeOnRow)
         assertTrue("the lock on the row", controls.lockOnRow)
     }
+}
 
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasRowPhoneSidewaysRtlTest : PlayerExtrasRenderFixture() {
     @Test
     @Config(sdk = [35], qualifiers = "w891dp-h411dp-land-night-xhdpi")
     fun rowPhoneSidewaysRtl() {
         row(tv = false, name = "extras-row-phone-land-rtl.png", rtl = true, shape = VideoScale.Crop)
     }
+}
 
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasRowPhoneUprightTest : PlayerExtrasRenderFixture() {
     @Test
     @Config(sdk = [35], qualifiers = "w411dp-h891dp-port-night-xhdpi")
     fun rowPhoneUpright() {
@@ -432,7 +539,11 @@ class PlayerExtrasRenderTest {
         // Upright the row has no room: both stay in the overflow, which then offers picture shape.
         assertTrue(!controls.shapeOnRow && !controls.lockOnRow)
     }
+}
 
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasRowTelevisionOnShapeTest : PlayerExtrasRenderFixture() {
     @Test
     @Config(sdk = [35], qualifiers = "w960dp-h540dp-land-night-xhdpi")
     fun rowTelevisionOnShape() {
@@ -440,7 +551,11 @@ class PlayerExtrasRenderTest {
         assertTrue(controls.shapeOnRow)
         assertTrue("the television keeps its lock in More", !controls.lockOnRow)
     }
+}
 
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class PlayerExtrasBarScrubHintTest : PlayerExtrasRenderFixture() {
     @Test
     @Config(sdk = [35], qualifiers = "w891dp-h411dp-land-night-xhdpi")
     fun barScrubHint() {
