@@ -64,7 +64,7 @@ abstract class GlassCardsRenderFixture {
                     }
                     Column(Modifier.fillMaxSize().background(Tone.background).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         PhoneHomeBrand(Modifier.fillMaxWidth(), false)
-                        HeroPill("Resume", com.tmplayer.ui.icons.TmIcons.Play, {})
+                        HeroPill(label = "Resume", onClick = {}, icon = com.tmplayer.ui.icons.TmIcons.Play)
                         com.tmplayer.ui.components.BrandLockup(modifier = Modifier.size(0.dp).graphicsLayer { alpha = 0f }, mark = { markDrawn = true })
                         ShelfTile(entry = ShelfEntry.File(MediaItem(chatId = 1, messageId = 1, fileId = 1, title = "Quiet Hills", fileName = "Quiet.Hills.2020.1080p.mkv", sizeBytes = 900_000_000, durationSec = 7200, mimeType = "video/mp4", thumbnailFileId = 0, miniThumbnail = null, date = 0)), poster = true,
                             watch = remember { SeriesWatch(point = { null }, finished = { false }) }, touch = !tv,
