@@ -1310,6 +1310,9 @@
     "saved_to": "Journaux enregistrés dans {place}",
     "send": "Envoyer les journaux",
     "send_title": "Envoyer les journaux de TG Stream",
+    "session_number": "Journal #{number}",
+    "session_start": "Démarrer le journal",
+    "session_stop": "Arrêter le journal",
     "tv_saved_body": "Ils sont dans {place} sur ce téléviseur, sans les noms, numéros et noms de fichiers. Pour signaler le problème, scannez le code avec votre téléphone : il ouvre un nouveau ticket sur GitHub."
   },
   "main": {

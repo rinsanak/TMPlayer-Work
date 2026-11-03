@@ -1310,6 +1310,9 @@
     "saved_to": "ログを {place} に保存しました",
     "send": "ログを送信",
     "send_title": "TG Stream のログを送信",
+    "session_number": "ログ #{number}",
+    "session_start": "ログ開始",
+    "session_stop": "ログ停止",
     "tv_saved_body": "名前、番号、ファイル名を除いたうえで、このテレビの {place} に保存しました。問題を報告するには、スマートフォンでコードを読み取ってください。GitHub で新しい報告が開きます。"
   },
   "main": {

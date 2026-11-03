@@ -28,4 +28,20 @@ class HomeContentTest {
         assertEquals(1, (rows[0] as HomeRow.Recent).entries.size)
         assertEquals(listOf(distinct.id), (rows[1] as HomeRow.Chat).entries.map { (it as ShelfEntry.File).item.id })
     }
+
+    @Test fun `channel tags quality variants and a missing year share one title and keep copies`() {
+        val one = video(1, "@channel Quiet.Hills.2020.1080p.mkv")
+        val two = video(2, "[Uploader] Quiet.Hills.720p.mkv")
+        val rows = HomeContent.clean(listOf(HomeRow.Recent(listOf(ShelfEntry.File(one), ShelfEntry.File(two)), true)))
+        val entries = (rows.single() as HomeRow.Recent).entries
+        assertEquals(1, entries.size)
+        assertEquals(2, (entries.single() as ShelfEntry.File).item.versions.size)
+    }
+    @Test fun `same thumbnail is not identity and remake years remain separate`() {
+        val one = video(1, "Quiet.Hills.1990.mkv").copy(thumbnailFileId = 77)
+        val two = video(2, "Quiet.Hills.2020.mkv").copy(thumbnailFileId = 77)
+        val third = video(3, "Harbour.2022.mkv").copy(thumbnailFileId = 77)
+        val rows = HomeContent.clean(listOf(HomeRow.Recent(listOf(one,two,third).map { ShelfEntry.File(it) }, true)))
+        assertEquals(3, (rows.single() as HomeRow.Recent).entries.size)
+    }
 }

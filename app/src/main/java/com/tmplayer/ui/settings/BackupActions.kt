@@ -143,6 +143,28 @@ internal fun rememberBackupActions(
  * which a file manager or a USB cable can still reach. "Save logs" (CP59) writes there too.
  */
 internal object SharedDownloads {
+    fun copyDiagnostic(context: Context, source: java.io.File): String {
+        if (Build.VERSION.SDK_INT >= 29) {
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, source.name)
+                put(MediaStore.MediaColumns.MIME_TYPE, if (source.extension == "zip") "application/zip" else "text/plain")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: throw java.io.IOException("Downloads unavailable")
+            try {
+                val output = resolver.openOutputStream(uri, "w") ?: throw java.io.IOException("Cannot open download")
+                output.use { out -> source.inputStream().use { it.copyTo(out) } }
+                resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            } catch (e: Exception) { resolver.delete(uri, null, null); throw e }
+            return "${Environment.DIRECTORY_DOWNLOADS}/${source.name}"
+        }
+        val dir = legacyDir(context) ?: throw java.io.IOException("Downloads unavailable")
+        if (!dir.isDirectory && !dir.mkdirs()) throw java.io.IOException("Cannot create downloads")
+        return java.io.File(dir, source.name).also { target -> source.inputStream().use { input -> target.outputStream().use { input.copyTo(it) } } }.absolutePath
+    }
+
 
     fun place(context: Context): String =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

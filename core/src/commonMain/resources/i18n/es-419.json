@@ -1310,6 +1310,9 @@
     "saved_to": "Registros guardados en {place}",
     "send": "Enviar registros",
     "send_title": "Enviar registros de TG Stream",
+    "session_number": "Registro #{number}",
+    "session_start": "Iniciar registro",
+    "session_stop": "Detener registro",
     "tv_saved_body": "Están en {place} en esta TV, sin nombres, números ni nombres de archivo. Para reportar el problema, escanea el código con tu teléfono: abre un nuevo reporte en GitHub."
   },
   "main": {

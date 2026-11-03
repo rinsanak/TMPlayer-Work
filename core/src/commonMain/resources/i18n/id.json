@@ -1310,6 +1310,9 @@
     "saved_to": "Log disimpan ke {place}",
     "send": "Kirim log",
     "send_title": "Kirim log TG Stream",
+    "session_number": "Log #{number}",
+    "session_start": "Mulai Log",
+    "session_stop": "Hentikan Log",
     "tv_saved_body": "Log ada di {place} di TV ini, tanpa nama, nomor, dan nama file. Untuk melaporkan masalahnya, pindai kode dengan ponsel Anda: kode ini membuka laporan baru di GitHub."
   },
   "main": {

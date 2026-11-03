@@ -1310,6 +1310,9 @@
     "saved_to": "Đã lưu nhật ký vào {place}",
     "send": "Gửi nhật ký",
     "send_title": "Gửi nhật ký TG Stream",
+    "session_number": "Nhật ký #{number}",
+    "session_start": "Bắt đầu ghi",
+    "session_stop": "Dừng ghi",
     "tv_saved_body": "Nhật ký nằm trong {place} trên TV này, đã bỏ tên, số và tên tệp. Để báo lỗi, hãy quét mã bằng điện thoại: mã sẽ mở một báo cáo mới trên GitHub."
   },
   "main": {

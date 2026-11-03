@@ -1310,6 +1310,9 @@
     "saved_to": "로그를 {place}에 저장했어요",
     "send": "로그 보내기",
     "send_title": "TG Stream 로그 보내기",
+    "session_number": "로그 #{number}",
+    "session_start": "로그 시작",
+    "session_stop": "로그 중지",
     "tv_saved_body": "이름, 번호, 파일 이름을 뺀 로그가 이 TV의 {place}에 있어요. 문제를 신고하려면 휴대폰으로 코드를 스캔하세요. GitHub에서 새 이슈가 열려요."
   },
   "main": {

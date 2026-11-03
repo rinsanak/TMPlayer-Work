@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.LocalContentColor
@@ -228,12 +229,12 @@ fun TMPlayerTheme(content: @Composable () -> Unit) {
             .let { if (choice == ThemeChoice.Glass) it.copy(
                 primary = androidx.compose.ui.graphics.Color(0xFF75E4E5),
                 onPrimary = androidx.compose.ui.graphics.Color(0xFF071D27),
-                background = androidx.compose.ui.graphics.Color(0xFF080F20),
-                surface = androidx.compose.ui.graphics.Color(0xDD14273C),
-                surfaceContainer = androidx.compose.ui.graphics.Color(0xD91A2D46),
-                surfaceContainerLow = androidx.compose.ui.graphics.Color(0xDB152237),
-                surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xE02A3C57),
-                surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xEB344B67),
+                background = androidx.compose.ui.graphics.Color.Transparent,
+                surface = androidx.compose.ui.graphics.Color(0x9914273C),
+                surfaceContainer = androidx.compose.ui.graphics.Color(0xA51A2D46),
+                surfaceContainerLow = androidx.compose.ui.graphics.Color(0x99152237),
+                surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xB32A3C57),
+                surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xC2344B67),
                 outline = androidx.compose.ui.graphics.Color(0x887DA6C9),
             ) else it }
             .highContrast(highContrast),
@@ -249,7 +250,11 @@ fun TMPlayerTheme(content: @Composable () -> Unit) {
     // cannot be swapped wholesale here; the springs live at the call sites that want them.
     M3MaterialTheme(
         colorScheme = scheme,
-        shapes = TmShapes,
+        shapes = if (choice == ThemeChoice.Glass) TmShapes.copy(
+            small = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+            medium = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
+            large = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+            extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(36.dp)) else TmShapes,
         // The phone scale, given to the theme the phone's own components read, so a screen mixing
         // the two theme systems draws all of its text at one scale.
         typography = if (touch) {
@@ -270,7 +275,7 @@ fun TMPlayerTheme(content: @Composable () -> Unit) {
                 LocalPureBlack provides black,
                 com.tmplayer.ui.theme.LocalGlassTheme provides (choice == ThemeChoice.Glass),
             ) {
-                UiScaled(scale) { ProvideStrings(content) }
+                UiScaled(scale) { ProvideStrings { if (context is com.tmplayer.player.PlayerActivity) content() else com.tmplayer.ui.theme.GlassBackdrop(content) } }
             }
         }
     }

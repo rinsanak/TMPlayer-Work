@@ -29,6 +29,7 @@ import com.tmplayer.ui.theme.Tone
  */
 @Composable
 fun LogoMark(size: Dp, modifier: Modifier = Modifier, progress: () -> Float = { RESTING }) {
+    if (com.tmplayer.data.TgStreamUi.active) return
     val accent = Tone.accent
     Canvas(modifier.size(size).semantics { contentDescription = BRAND_NAME }) {
         val u = this.size.width / VIEWPORT

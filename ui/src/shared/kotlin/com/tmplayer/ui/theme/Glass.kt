@@ -1,6 +1,7 @@
 package com.tmplayer.ui.theme
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithCache
@@ -26,4 +27,17 @@ fun Modifier.glassPanel(): Modifier = composed {
             drawRoundRect(shine, cornerRadius = radius, style = Stroke(1.dp.toPx()))
         }
     }
+}
+
+/** The same backdrop under all Android screens, without per-frame blur work. */
+@androidx.compose.runtime.Composable
+fun GlassBackdrop(content: @androidx.compose.runtime.Composable () -> Unit) {
+    if (!LocalGlassTheme.current) { content(); return }
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().drawWithCache {
+        val ground = Brush.linearGradient(listOf(Color(0xFF071523), Color(0xFF26395A), Color(0xFF102638)),
+            Offset.Zero, Offset(size.width, size.height))
+        val bloom = Brush.radialGradient(listOf(Color(0x5552D9DC), Color.Transparent),
+            center = Offset(size.width * 0.15f, size.height * 0.25f), radius = size.maxDimension * 0.7f)
+        onDrawBehind { drawRect(ground); drawRect(bloom) }
+    }) { content() }
 }

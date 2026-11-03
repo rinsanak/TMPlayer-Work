@@ -52,9 +52,19 @@ fun FloatingWindow(
     ) {
         val view = LocalView.current
         val window = (view.parent as? DialogWindowProvider)?.window
+        val glass = com.tmplayer.ui.theme.LocalGlassTheme.current
         SideEffect {
             window?.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-            window?.setDimAmount(Floating.SCRIM_ALPHA)
+            window?.setDimAmount(if (glass) 0.24f else Floating.SCRIM_ALPHA)
+            if (android.os.Build.VERSION.SDK_INT >= 31 && window != null) {
+                runCatching {
+                    window.setBackgroundBlurRadius(if (glass) 32 else 0)
+                    if (glass) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                        window.attributes = window.attributes.apply { blurBehindRadius = 24 }
+                    } else window.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                }.onFailure { com.tmplayer.data.DiagnosticSession.event("GLASS", "Window blur unavailable: ${it.javaClass.simpleName}") }
+            }
             if (immersive && window != null) {
                 // Cutouts are Android 9's; an older phone has none to draw under.
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {

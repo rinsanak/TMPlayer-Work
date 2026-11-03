@@ -1310,6 +1310,9 @@
     "saved_to": "Logi zapisane w {place}",
     "send": "Wyślij logi",
     "send_title": "Wyślij logi TG Streama",
+    "session_number": "Log #{number}",
+    "session_start": "Rozpocznij log",
+    "session_stop": "Zatrzymaj log",
     "tv_saved_body": "Są w {place} na tym telewizorze, bez nazw, numerów i nazw plików. Aby zgłosić problem, zeskanuj kod telefonem: otworzy nowe zgłoszenie na GitHubie."
   },
   "main": {

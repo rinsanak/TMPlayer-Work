@@ -1310,6 +1310,9 @@
     "saved_to": "Günlükler {place} konumuna kaydedildi",
     "send": "Günlükleri gönder",
     "send_title": "TG Stream günlüklerini gönder",
+    "session_number": "Kayıt #{number}",
+    "session_start": "Kaydı başlat",
+    "session_stop": "Kaydı durdur",
     "tv_saved_body": "Adlar, numaralar ve dosya adları çıkarılmış olarak bu TV'de {place} konumunda. Sorunu bildirmek için kodu telefonunuzla tarayın: GitHub'da yeni bir kayıt açar."
   },
   "main": {

@@ -112,4 +112,6 @@ fun floatingBorder(): BorderStroke = BorderStroke(Floating.Border, Tone.outline)
 fun Modifier.floatingSurface(
     fill: Color = FloatingTone.dialog,
     shape: Shape = Floating.DialogShape,
-): Modifier = clip(shape).background(fill).border(floatingBorder(), shape)
+): Modifier = clip(shape)
+    .background(if (LocalGlassTheme.current) fill.copy(alpha = 0.78f) else fill)
+    .glassPanel().border(floatingBorder(), shape)

@@ -21,10 +21,12 @@ import java.io.File
 object AndroidLogSink : LogSink {
     override fun i(tag: String, message: String) {
         Log.i(tag, message)
+        DiagnosticSession.event("CORE/$tag", message)
     }
 
     override fun w(tag: String, message: String, error: Throwable?) {
         if (error == null) Log.w(tag, message) else Log.w(tag, message, error)
+        DiagnosticSession.event("CORE_ERROR/$tag", message + (error?.let { "\n" + it.stackTraceToString() } ?: ""))
     }
 }
 

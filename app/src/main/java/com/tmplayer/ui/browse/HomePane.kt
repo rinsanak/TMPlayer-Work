@@ -1068,6 +1068,10 @@ private fun ShelfTile(
     onOpenSeries: (Series) -> Unit,
     modifier: Modifier,
 ) {
+    LaunchedEffect(entry) {
+        val item = when (entry) { is ShelfEntry.File -> entry.item; is ShelfEntry.Show -> entry.series.cover }
+        com.tmplayer.data.DiagnosticSession.event("HOME_CARD", "identityHash=${com.tmplayer.data.HomeContent.identity(item).hashCode()} titleHash=${com.tmplayer.data.TitleIdentity.name(item).hashCode()} year=${com.tmplayer.data.TitleIdentity.year(item)} fileId=${item.fileId} thumbnailId=${item.thumbnailFileId} durationSec=${item.durationSec} copies=${item.versions.size} rawName=${item.fileName} parsedTitle=${com.tmplayer.data.TitleIdentity.parsed(item).title}")
+    }
     when (entry) {
         is ShelfEntry.File -> MediaCard(
             item = entry.item,
@@ -1562,9 +1566,12 @@ internal val BRAND_TOP = 12.dp
 /** The mark and "TMPlayer" at the top of a phone's Home, in the colours for art over the carousel. */
 @Composable
 internal fun PhoneHomeBrand(modifier: Modifier, onArt: Boolean) {
+    androidx.compose.foundation.layout.Column(modifier, verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
     com.tmplayer.ui.components.BrandLockup(
-        modifier,
+        Modifier,
         layout = com.tmplayer.ui.components.BrandLayout.Row,
         color = if (onArt) Tone.onArt else Tone.text,
     )
+    com.tmplayer.ui.settings.DiagnosticControls()
+    }
 }

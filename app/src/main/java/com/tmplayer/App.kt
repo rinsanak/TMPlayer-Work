@@ -54,6 +54,7 @@ class App : Application() {
         com.tmplayer.data.SettingsDefaults.evenVolume = !com.tmplayer.data.FormFactor.isTv(this)
         // The shared code logs through a facade; on Android it goes to logcat as it always has.
         Logger.sink = AndroidLogSink
+        com.tmplayer.data.DiagnosticSession.install(this)
         // A background job or a view model's job that throws is logged and reported (with the
         // switch on), never the end of the process (HX10).
         com.tmplayer.platform.JobFailures.report = CrashReports::handled
@@ -70,6 +71,11 @@ class App : Application() {
         // in step with this one in both directions.
         backgroundScope.launch {
             val store = SettingsStore(this@App)
+            val glassMigration = getSharedPreferences("tg-glass-migration", 0)
+            if (!runCatching { glassMigration.getBoolean("all-screens-v105", false) }.getOrDefault(false)) {
+                store.setThemeChoice(com.tmplayer.data.ThemeChoice.Glass)
+                glassMigration.edit().putBoolean("all-screens-v105", true).apply()
+            }
             AppLocales.adopt(this@App, store.language.first())?.let { store.setLanguage(it) }
             store.language.collect { saved ->
                 Translator.select(saved, AppLocales.system(this@App))

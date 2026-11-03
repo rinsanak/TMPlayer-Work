@@ -1310,6 +1310,9 @@
     "saved_to": "Logs saved to {place}",
     "send": "Send logs",
     "send_title": "Send TG Stream logs",
+    "session_number": "Log #{number}",
+    "session_start": "Start Log",
+    "session_stop": "Stop Log",
     "tv_saved_body": "They are in {place} on this TV, with names, numbers and file names taken out. To report the problem, scan the code with your phone: it opens a new issue on GitHub."
   },
   "main": {

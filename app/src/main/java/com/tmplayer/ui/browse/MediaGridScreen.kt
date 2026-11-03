@@ -1,5 +1,7 @@
 package com.tmplayer.ui.browse
 
+import androidx.compose.ui.unit.sp
+
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 
@@ -2244,9 +2246,23 @@ internal fun VideoTile(
                 .then(if (touch) Modifier.indication(interactions, LocalIndication.current) else Modifier)
                 .then(ring)
                 .selectionEdge(selected, shape),
-            content = art,
-        )
-        Spacer(Modifier.height(if (touch) 8.dp else 10.dp))
+        ) {
+            art()
+            if (artworkOnly) {
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(bottom = 8.dp)
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(
+                        androidx.compose.ui.graphics.Color.Transparent, androidx.compose.ui.graphics.Color(0xED081422))))
+                    .padding(start = 10.dp, end = 10.dp, top = 30.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    M3Text(title, color = androidx.compose.ui.graphics.Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    meta?.invoke(androidx.compose.ui.graphics.ColorProducer { androidx.compose.ui.graphics.Color.White })
+                }
+            }
+        }
+        if (!artworkOnly) Spacer(Modifier.height(if (touch) 8.dp else 10.dp))
         // Two lines, and always two where a row of tiles sits under this one, so the pictures
         // beneath a short name stay in a straight line with the rest.
         val lines = if (poster || dense) 2 else 1
@@ -2751,7 +2767,7 @@ private fun MetaLine(
         listOfNotNull(
             year?.toString(),
             // A poster is narrow: the year and the size or the copies say most, and the detail the rest.
-            duration.ifEmpty { null }?.takeIf { !poster },
+            duration.ifEmpty { null }?.takeIf { !poster || com.tmplayer.data.TgStreamUi.active },
             size.ifEmpty { null },
             // On a video's card the quality is here rather than a second badge on the picture.
             item.qualityTags.firstOrNull()?.takeIf { !poster },

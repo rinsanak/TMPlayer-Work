@@ -1812,6 +1812,8 @@ fun SettingsScreen(
                         onClick = { reporting = true },
                     )
                 } }
+                item(key = "diagnostic_session") { DiagnosticControls(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) }
+
                 // The logs to attach to that report (CP59), scrubbed of names and ids before they are written.
                 item {
                     ActionRow(

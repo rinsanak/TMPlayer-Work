@@ -269,7 +269,10 @@ internal fun TouchNavHost(
 
     // The bar comes back whenever the page underneath changes: a bar left hidden across a change
     // of page has no pull-down to restore it on a page too short to scroll.
-    LaunchedEffect(pageKey, spec?.current, spec?.inProfile, spec?.hidden) { bar.show() }
+    LaunchedEffect(pageKey, spec?.current, spec?.inProfile, spec?.hidden) {
+        com.tmplayer.data.DiagnosticSession.event("NAVIGATION", "page=${pageKey.javaClass.simpleName} section=${spec?.current} profile=${spec?.inProfile} hidden=${spec?.hidden}")
+        bar.show()
+    }
     // And on the way back from the player, an activity coming forward rather than a recomposition.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {

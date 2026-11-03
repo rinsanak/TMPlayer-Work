@@ -1310,6 +1310,9 @@
     "saved_to": "Protokolle gespeichert unter {place}",
     "send": "Protokolle senden",
     "send_title": "TG Stream-Protokolle senden",
+    "session_number": "Log #{number}",
+    "session_start": "Log starten",
+    "session_stop": "Log stoppen",
     "tv_saved_body": "Sie liegen auf diesem Fernseher unter {place}, ohne Namen, Nummern und Dateinamen. Um das Problem zu melden, scanne den Code mit deinem Handy: Er öffnet ein neues Issue auf GitHub."
   },
   "main": {

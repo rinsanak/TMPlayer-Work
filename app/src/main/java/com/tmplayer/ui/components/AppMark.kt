@@ -23,6 +23,7 @@ import com.tmplayer.R
  */
 @Composable
 fun AppMark(size: Dp, modifier: Modifier = Modifier) {
+    if (com.tmplayer.data.TgStreamUi.active) return
     Image(
         painter = painterResource(R.drawable.ic_logo),
         // Always accompanied by the app's name in text, so reading it twice would only be noise.

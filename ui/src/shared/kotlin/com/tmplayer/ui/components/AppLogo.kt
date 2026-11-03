@@ -131,6 +131,12 @@ fun BrandLockup(
     badge: Boolean = true,
     mark: (@Composable (Dp) -> Unit)? = null,
 ) {
+    if (com.tmplayer.data.TgStreamUi.active) {
+        Text(BRAND_NAME, modifier = modifier, color = color,
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = size.name, fontWeight = FontWeight.SemiBold),
+            maxLines = 1, softWrap = false)
+        return
+    }
     val badgeText = if (badge) LocalBrandBadge.current else null
     Layout(
         contents = listOf(

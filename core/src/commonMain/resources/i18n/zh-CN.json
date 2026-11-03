@@ -1310,6 +1310,9 @@
     "saved_to": "日志已保存到 {place}",
     "send": "发送日志",
     "send_title": "发送 TG Stream 日志",
+    "session_number": "日志 #{number}",
+    "session_start": "开始日志",
+    "session_stop": "停止日志",
     "tv_saved_body": "日志已保存在这台电视的 {place}，名称、号码和文件名已去除。要报告问题，请用手机扫描二维码，它会在 GitHub 上新建一个问题。"
   },
   "main": {

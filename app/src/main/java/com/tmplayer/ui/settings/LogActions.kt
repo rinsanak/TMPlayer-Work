@@ -183,13 +183,15 @@ private suspend fun shareableLogFile(context: Context, name: String): File {
 }
 
 /** The share sheet, with the file and a subject line for a mail app. False if nothing could take it. */
+internal fun shareDiagnosticFile(context: Context, file: File): Boolean = shareLogFile(context, file)
+
 private fun shareLogFile(context: Context, file: File): Boolean = runCatching {
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
     val send = Intent(Intent.ACTION_SEND)
-        .setType(MIME)
+        .setType(if (file.extension == "zip") "application/zip" else MIME)
         .putExtra(Intent.EXTRA_STREAM, uri)
         // For the maintainer, who reads reports in English, like the file's own header.
-        .putExtra(Intent.EXTRA_SUBJECT, "TMPlayer logs") // i18n-ok: mail subject for the maintainer
+        .putExtra(Intent.EXTRA_SUBJECT, file.name) // i18n-ok: mail subject for the maintainer
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     context.startActivity(
         Intent.createChooser(send, L.logsSendTitle)

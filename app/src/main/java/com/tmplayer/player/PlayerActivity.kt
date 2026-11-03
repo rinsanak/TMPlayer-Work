@@ -168,6 +168,11 @@ import java.io.File
 @UnstableApi
 class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
+    fun diagnosticSnapshot(): String {
+        val p = player ?: return "player=none"
+        return "state=${p.playbackState} playing=${p.isPlaying} intentPlay=${p.playWhenReady} positionMs=${p.currentPosition} durationMs=${p.duration} bufferedMs=${p.bufferedPosition} readBytes=${readBytes.get()} downloadBytes=$lastDownloadedTotal complete=$downloadComplete video=${p.videoFormat?.sampleMimeType} width=${p.videoFormat?.width} height=${p.videoFormat?.height} audio=${p.audioFormat?.sampleMimeType} rendered=${p.videoDecoderCounters?.renderedOutputBufferCount} dropped=${p.videoDecoderCounters?.droppedBufferCount} error=${p.playerError?.errorCodeName}"
+    }
+
     override var player: ExoPlayer? = null
         private set
 

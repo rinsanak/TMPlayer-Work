@@ -1310,6 +1310,9 @@
     "saved_to": "記錄檔已儲存至 {place}",
     "send": "傳送記錄檔",
     "send_title": "傳送 TG Stream 記錄檔",
+    "session_number": "日誌 #{number}",
+    "session_start": "開始日誌",
+    "session_stop": "停止日誌",
     "tv_saved_body": "記錄檔已存在這台電視的 {place}，名稱、號碼和檔名都已移除。要回報問題，請用手機掃描 QR 碼，它會在 GitHub 上開一則新的問題回報。"
   },
   "main": {
