@@ -1,0 +1,50 @@
+name: Inspect Android test report
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "CI run ID; leave blank for the latest completed branch run"
+        required: false
+        type: string
+  push:
+    branches: ["tg-stream-rebrand"]
+    paths: [".github/workflows/inspect-android-tests.yml"]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read failed Android test details
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_RUN: ${{ inputs.run_id }}
+        run: |
+          RUN_ID="$REQUESTED_RUN"
+          if [ -z "$RUN_ID" ]; then
+            RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=tg-stream-rebrand&status=completed&per_page=50" --jq '[.workflow_runs[] | select(.name == "CI")] | sort_by(.id) | last | .id')"
+          fi
+          test "$RUN_ID" != null
+          echo "Inspecting CI run $RUN_ID"
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name test-results --dir report
+          python3 - <<'PY'
+          import html, pathlib, re
+          root = pathlib.Path("report/app/build/reports/tests")
+          count = 0
+          for path in sorted(root.rglob("*.html")):
+              if path.name == "index.html":
+                  continue
+              source = path.read_text()
+              if "AssertionError" not in source and "ComparisonFailure" not in source and "Failure details" not in source:
+                  continue
+              text = html.unescape(re.sub("<[^>]+>", " ", source))
+              print("\nFILE", path)
+              print(text[-14000:])
+              count += 1
+          print("Failed test reports:", count)
+          PY
