@@ -116,7 +116,8 @@ jobs:
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
           test -n "$APKSIGNER"
           "$APKSIGNER" verify --verbose --print-certs "$APK" | tee apk-verification.txt
-          grep -Fq "Signer #1 certificate SHA-256 digest: 3580acc62809ab114ccb00d567d24fe3b2aee2cc4f1aa02e2d5242ae27119686" apk-verification.txt
+          grep -Fxq "Number of signers: 1" apk-verification.txt
+          grep -Fq "certificate SHA-256 digest: 3580acc62809ab114ccb00d567d24fe3b2aee2cc4f1aa02e2d5242ae27119686" apk-verification.txt
           "$(dirname "$APKSIGNER")/aapt2" dump badging "$APK" > apk-badging.txt
           grep -E "^(package:|sdkVersion:|targetSdkVersion:|native-code:)" apk-badging.txt
           python3 - "$APK" "${{ steps.version.outputs.name }}" "${{ steps.version.outputs.code }}" <<'PY'
@@ -153,17 +154,37 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          android_ci_status() {
+            local sha="$1" run
+            run="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$sha&event=push&per_page=20" --jq '[.workflow_runs[] | select(.name == "CI")] | sort_by(.id) | last | .id // empty' || true)"
+            if [ -n "$run" ]; then
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?filter=latest" --jq '.jobs[] | select(.name == "Test and build") | .conclusion // .status' || true
+            fi
+          }
+          # A release-script-only fix keeps app code, tests, build inputs and CI commands identical.
+          # Reuse its tested parent only after proving that these are the only changed paths.
+          PARENT_SHA="$(git rev-parse HEAD^)"
+          PARENT_EQUIVALENT=false
+          CHANGED="$(git diff --name-only "$PARENT_SHA" HEAD)"
+          if [ -n "$CHANGED" ]; then
+            if ! printf '%s\n' "$CHANGED" | grep -Eqv '^(\.github/workflows/release\.yml|\.github/tg-stream-build-request)$'; then
+              PARENT_EQUIVALENT=true
+            fi
+          fi
           for attempt in $(seq 1 120); do
-            CI_RUN="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=20" --jq '[.workflow_runs[] | select(.name == "CI")] | sort_by(.id) | last | .id // empty' || true)"
-            STATUS=""
-            if [ -n "$CI_RUN" ]; then
-              STATUS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN/jobs?filter=latest" --jq '.jobs[] | select(.name == "Test and build") | .conclusion // .status' || true)"
+            STATUS="$(android_ci_status "$GITHUB_SHA")"
+            if [ "$STATUS" = success ]; then exit 0; fi
+            if [ "$PARENT_EQUIVALENT" = true ]; then
+              PARENT_STATUS="$(android_ci_status "$PARENT_SHA")"
+              if [ "$PARENT_STATUS" = success ]; then
+                echo "Reusing successful Android CI for byte-identical app and test source: $PARENT_SHA"
+                exit 0
+              fi
             fi
             case "$STATUS" in
-              success) exit 0 ;;
               failure|cancelled|timed_out) echo "::error::Android CI did not pass ($STATUS). No release published."; exit 1 ;;
             esac
-            echo "Waiting for Android CI: ${STATUS:-pending}"
+            echo "Waiting for Android CI: $STATUS"
             sleep 15
           done
           echo "::error::Android CI was not successful within the wait window. Re-run after it completes."

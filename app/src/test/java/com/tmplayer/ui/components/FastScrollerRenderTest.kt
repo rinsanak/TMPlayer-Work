@@ -46,16 +46,25 @@ import java.time.Duration
 // same class never saw the handle come out.
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(application = android.app.Application::class)
 abstract class FastScrollerRenderTest {
+
+    private var controller: org.robolectric.android.controller.ActivityController<ComponentActivity>? = null
 
     @org.junit.After
     fun tearDown() {
+        controller?.pause()?.stop()?.destroy()
         com.tmplayer.ui.theme.Motion.reduced = false
     }
 
     private fun idle(ms: Long) = repeat((ms / 50).toInt()) { shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(50)) }
 
-    protected fun render(out: String) {
+    protected fun render(out: String, glass: Boolean = false) {
+        // Component fixtures choose their appearance explicitly, independently of app migrations.
+        kotlinx.coroutines.runBlocking {
+            com.tmplayer.data.SettingsStore(org.robolectric.RuntimeEnvironment.getApplication()).setThemeChoice(
+                if (glass) com.tmplayer.data.ThemeChoice.Glass else com.tmplayer.data.ThemeChoice.System)
+        }
         // The answer is kept for the process, and a television test before this one leaves it set.
         FormFactor.override(false)
         // The handle's slide and fade land at once: what is checked is where it stands, and in a
@@ -64,12 +73,18 @@ abstract class FastScrollerRenderTest {
         val state = LazyListState(firstVisibleItemIndex = 60)
         var accent = 0
         var ground = 0
-        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val activity = requireNotNull(controller).get()
+        var glassDrawn = false
         activity.setContent {
             TMPlayerTheme {
+                val isGlass = com.tmplayer.ui.theme.LocalGlassTheme.current
+                androidx.compose.runtime.SideEffect { glassDrawn = isGlass }
+                // A fixed opaque fixture behind Glass keeps pixel comparisons local to the handle.
+                val fixtureGround = if (glass) androidx.compose.ui.graphics.Color(0xFF203040) else Tone.background
                 accent = Tone.accent.toArgb()
-                ground = Tone.background.toArgb()
-                Box(Modifier.fillMaxSize().background(Tone.background)) {
+                ground = fixtureGround.toArgb()
+                Box(Modifier.fillMaxSize().background(fixtureGround)) {
                     LazyColumn(state = state, modifier = Modifier.fillMaxSize()) {
                         items(400, key = { it }) { i ->
                             // Words only on the start side, so the end edge is the page's own colour but for the handle.
@@ -81,6 +96,11 @@ abstract class FastScrollerRenderTest {
             }
         }
         idle(100)
+        if (glass) {
+            val deadline = System.currentTimeMillis() + 3000
+            while (!glassDrawn && System.currentTimeMillis() < deadline) { Thread.sleep(25); idle(50) }
+            assertTrue("Glass appearance must be active for the Glass scroll case", glassDrawn)
+        }
         // The list is held mid-scroll until the picture is taken, which brings the handle out.
         // Started from the test, and held rather than a short scroll: after a long run of render
         // tests the handle's own watcher started late, after a 200 ms scroll had already ended,
@@ -147,4 +167,10 @@ class FastScrollerRenderRtlTest : FastScrollerRenderTest() {
     @Test
     @Config(sdk = [35], qualifiers = "ar-w411dp-h891dp-port-notnight-xhdpi")
     fun `phone, right to left`() = render("rtl")
+}
+
+class FastScrollerRenderGlassTest : FastScrollerRenderTest() {
+    @Test
+    @Config(sdk = [35], qualifiers = "w411dp-h891dp-port-night-xhdpi")
+    fun `phone, glass`() = render("glass", glass = true)
 }

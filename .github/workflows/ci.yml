@@ -57,9 +57,9 @@ jobs:
 
       # Debug only: the promo and release variants run the same test sources. Since AGP 9 only
       # the tested build type (debug) gets a unit test task at all, so this is every app test.
-      - name: Check diagnostic, Glass and player regressions
+      - name: Check diagnostic, Glass, player and navigation regressions
         timeout-minutes: 8
-        run: ./gradlew :app:testDebugUnitTest --tests "*DiagnosticSessionTest" --tests "*GlassCards*Test" --tests "*PlayerExtras*Test"
+        run: ./gradlew :app:testDebugUnitTest --tests "*DiagnosticSessionTest" --tests "*GlassCards*Test" --tests "*PlayerExtras*Test" --tests "*FastScrollerRender*Test" --tests "*TvReach*Test"
 
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest

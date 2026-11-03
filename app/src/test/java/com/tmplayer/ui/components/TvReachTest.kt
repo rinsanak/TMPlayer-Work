@@ -47,29 +47,40 @@ import org.robolectric.annotation.Config
  * from the arrows, and gives it back to the page's item it was on.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], qualifiers = "w960dp-h540dp-land-television-night-xhdpi")
-class TvReachTest {
+@Config(sdk = [35], qualifiers = "w960dp-h540dp-land-television-night-xhdpi", application = android.app.Application::class)
+abstract class TvReachFixture {
+
+    private var controller: org.robolectric.android.controller.ActivityController<ComponentActivity>? = null
 
     @After
     fun tearDown() {
+        controller?.pause()?.stop()?.destroy()
         FormFactor.override(false)
     }
 
-    private lateinit var activity: ComponentActivity
-    private var focused: String? = null
-    private var retried = 0
-    private var proxies = 0
-    private var bannerShown by mutableStateOf(true)
-    private var cardShown by mutableStateOf(false)
-    private val tile = List(3) { FocusRequester() }
+    protected lateinit var activity: ComponentActivity
+    protected var focused: String? = null
+    protected var retried = 0
+    protected var proxies = 0
+    protected var bannerShown by mutableStateOf(true)
+    protected var cardShown by mutableStateOf(false)
+    protected val tile = List(3) { FocusRequester() }
 
-    private fun Modifier.named(name: String) = onFocusChanged { if (it.isFocused) focused = name else if (focused == name) focused = null }
+    protected fun Modifier.named(name: String) = onFocusChanged { if (it.isFocused) focused = name else if (focused == name) focused = null }
 
-    private fun compose() {
+    protected fun compose(glass: Boolean = false) {
+        kotlinx.coroutines.runBlocking {
+            com.tmplayer.data.SettingsStore(org.robolectric.RuntimeEnvironment.getApplication()).setThemeChoice(
+                if (glass) com.tmplayer.data.ThemeChoice.Glass else com.tmplayer.data.ThemeChoice.System)
+        }
+        var glassDrawn = false
         FormFactor.override(true)
-        activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        activity = requireNotNull(controller).get()
         activity.setContent {
             TMPlayerTheme {
+                val isGlass = com.tmplayer.ui.theme.LocalGlassTheme.current
+                androidx.compose.runtime.SideEffect { glassDrawn = isGlass }
                 Box(Modifier.fillMaxSize().background(Tone.background).tvReachRoot()) {
                     val bar = remember { FocusRequester() }
                     val chats = remember { FocusRequester() }
@@ -108,6 +119,11 @@ class TvReachTest {
             }
         }
         idle()
+        if (glass) {
+            val deadline = System.currentTimeMillis() + 3000
+            while (!glassDrawn && System.currentTimeMillis() < deadline) { Thread.sleep(25); idle() }
+            assertTrue("Glass appearance must be active for the Glass focus case", glassDrawn)
+        }
         val viewRoot = activity.window.decorView.parent
         org.robolectric.util.ReflectionHelpers.callInstanceMethod<Any>(
             viewRoot, "ensureTouchMode",
@@ -121,6 +137,24 @@ class TvReachTest {
         idle()
     }
 
+
+
+
+
+    protected fun key(code: Int) {
+        activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
+        activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+        idle()
+    }
+
+    protected fun idle() = repeat(10) { shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(50)) }
+}
+
+// One focus scenario per native worker; retain every navigation assertion.
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], qualifiers = "w960dp-h540dp-land-television-night-xhdpi")
+class TvReachBannerTest : TvReachFixture() {
     @Test
     fun bannerIsReachedFromTheBarAndGivesTheRemoteBack() {
         compose()
@@ -178,7 +212,11 @@ class TvReachTest {
         key(KeyEvent.KEYCODE_DPAD_UP)
         assertEquals("chats", focused)
     }
+}
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], qualifiers = "w960dp-h540dp-land-television-night-xhdpi")
+class TvReachCardTest : TvReachFixture() {
     @Test
     fun askingCardHoldsTheRemoteAndGivesItBackToThePage() {
         compose()
@@ -204,12 +242,34 @@ class TvReachTest {
         idle()
         assertEquals("tile2", focused)
     }
+}
 
-    private fun key(code: Int) {
-        activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
-        activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], qualifiers = "w960dp-h540dp-land-television-night-xhdpi")
+class TvReachGlassCardTest : TvReachFixture() {
+    @Test
+    fun askingCardHoldsTheRemoteAndGivesItBackToThePage() {
+        compose(glass = true)
+        bannerShown = false
         idle()
-    }
+        tile[2].requestFocus()
+        idle()
+        assertEquals("tile2", focused)
 
-    private fun idle() = repeat(10) { shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(50)) }
+        cardShown = true
+        idle()
+        assertEquals("keep", focused)
+        // The arrows stay inside the card: Up does not reach the page behind it.
+        key(KeyEvent.KEYCODE_DPAD_UP)
+        assertEquals("keep", focused)
+        key(KeyEvent.KEYCODE_DPAD_LEFT)
+        assertEquals("change", focused)
+        key(KeyEvent.KEYCODE_DPAD_LEFT)
+        assertEquals("change", focused)
+
+        // Answered: the remote is back on the tile it was on.
+        cardShown = false
+        idle()
+        assertEquals("tile2", focused)
+    }
 }

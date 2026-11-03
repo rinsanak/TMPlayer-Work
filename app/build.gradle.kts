@@ -335,6 +335,7 @@ android {
                 // Bound stalled native render tests and identify the last running case in CI.
                 it.timeout.set(Duration.ofMinutes(15))
                 it.testLogging.events("started", "failed", "skipped")
+                it.testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
             }
         }
     }
