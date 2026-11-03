@@ -39,14 +39,13 @@ import com.tmplayer.i18n.Translator
  * takes the press and commits.
  *
  * A phone shows more of the layout than a television does: a top bar with the way back and an
- * overflow menu, a centre cluster carrying the transport (previous episode, play or pause, next
- * episode), and an elapsed and total line over the bar. The bottom row keeps four buttons:
+ * overflow menu, compact bottom transport (previous episode, play or pause, next episode),
+ * and an elapsed and total line over the bar. The bottom row keeps four buttons:
  * subtitles, audio, speed and rotate, and given the room (held sideways, a tablet) picture shape
  * after speed and the lock at the end ([fitRow]). The jumps are the double tap and the keys; picture
  * in picture, and whatever the row has no room for, sit in the overflow. A television shows none
- * of the phone pieces and keeps one row: subtitles, audio, speed, picture shape and More at the end. Play, pause, the jumps
- * and the episode steps are the remote's keys. What a television keeps of the centre is the play
- * disc as a cue rather than a button, drawn only while the video is paused.
+ * of the phone pieces and keeps bottom transport above the secondary actions: subtitles, audio,
+ * speed, picture shape and More. The remote can focus the play button or use its playback keys.
  *
  * Both rows end in Episodes, on a video that belongs to a series: the episode list with the
  * previous and next steps at its top ([PlayerEpisodes]).
@@ -572,7 +571,7 @@ class PlayerControls(
     }
 
     /**
-     * The phone's layout: the transport moves to the middle, the name to the top, and the bottom row
+     * The phone's layout: compact transport stays in the bottom dock, the name at the top, and the row
      * is left with subtitles, audio, speed and rotate, plus picture shape and the lock when wide.
      */
     private fun setUpPhone(root: View) {
@@ -624,12 +623,14 @@ class PlayerControls(
             cluster.resources.displayMetrics.density >= 600f
         val parent = if (wide) row else dock
         if (center.parent === parent) return
+        val focused = center.findFocus()
         (center.parent as? android.view.ViewGroup)?.removeView(center)
         center.layoutParams = android.widget.LinearLayout.LayoutParams(
             if (wide) android.view.ViewGroup.LayoutParams.WRAP_CONTENT else android.view.ViewGroup.LayoutParams.MATCH_PARENT,
             (48 * cluster.resources.displayMetrics.density).toInt(),
         )
         parent.addView(center, if (wide) 0 else dock.indexOfChild(timeBar) + 1)
+        focused?.requestFocus()
     }
 
     private fun fitRow() {
@@ -655,14 +656,13 @@ class PlayerControls(
     }
 
     /**
-     * The television's row: no transport, since the remote's own keys play, pause, jump and step
-     * episodes and a button for each was a second way to do what a thumb never needed. Picture shape
+     * The television's row keeps compact transport and accepts the remote's playback keys. Picture shape
      * gets a button, the one setting a sofa changes per video. More goes at the end, holding the
      * rarer actions (the lock, picture in picture, the sleep timer and the rest), and
      * the time readout becomes something OK can land on and press, which flips the total to the time
      * left the way a tap on the phone's total does.
      *
-     * The centre disc stays: the one play button, up with the row like the phone's. A pause hands
+     * The play button stays in the bottom dock, up with the row like the phone's. A pause hands
      * it the remote, so OK resumes, and its glyph turning is the only answer to either.
      */
     private fun setUpTv(root: View) {
@@ -673,8 +673,7 @@ class PlayerControls(
         wire(centerPlay) { onTogglePlay(); renderPlayPause(animate = true) }
         centerPlay.nextFocusUpId = R.id.controls_timebar
         centerPlay.nextFocusDownId = R.id.control_subtitles
-        timeBar.nextFocusDownId = R.id.center_play_pause
-        // Down from the bar lands on the first button the row has.
+        // Down from the bar lands on transport before the secondary actions.
         timeBar.nextFocusDownId = R.id.center_play_pause
         val more = root.findViewById<View>(R.id.control_tv_more)
         more.visibility = View.VISIBLE

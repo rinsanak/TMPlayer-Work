@@ -8423,6 +8423,10 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         resumeMs = position
         lifecycleScope.launch {
             try {
+                if (reloadPlan() == Reload.Plan.PlainRetry) {
+                    retryPlayback()
+                    return@launch
+                }
                 val session = withTimeoutOrNull(20_000) { Td.awaitAuthorizedSession() }
                     ?: throw java.io.IOException("Telegram session unavailable")
                 kotlinx.coroutines.withTimeout(30_000) {

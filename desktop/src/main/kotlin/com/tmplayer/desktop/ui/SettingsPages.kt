@@ -94,7 +94,7 @@ internal fun AppearanceRows(state: ShellState) {
         if (theme == ThemeChoice.System) s.themeSystemDesktopDetail else theme.description,
         icon = TmIcons.Theme,
     ) {
-        Segments(ThemeChoice.entries, theme, { it.label }) { scope.launch { settings.setThemeChoice(it) } }
+        Segments(ThemeChoice.options, theme, { it.label }) { scope.launch { settings.setThemeChoice(it) } }
     }
     // Pure black, the usual switch under the theme: offered under System and Dark, folded away
     // under Light, where it would change nothing.

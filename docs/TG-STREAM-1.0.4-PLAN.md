@@ -19,3 +19,21 @@
 
 Shared core policy is opt-in for the Android fork where appropriate. Desktop and web keep their
 existing Home and transport layouts. Real signed-in TV/phone playback cannot be claimed from CI.
+
+## Continuation: 2026-11-03
+
+- Android phone and TV: keep the compact dock, check real viewport dimensions in screenshot tests,
+  exercise D-pad focus and preserve the focused transport across responsive reparenting. Desktop
+  and web keep their transport layouts. Check portrait, landscape, TV, resizing and large text.
+- Recovery: keep the current video's resume point, close readers before cache deletion, keep
+  intentional offline downloads and handle cancellation, timeout and repeated Retry presses.
+- Confirm all requested Home, icon and Glass changes from the existing implementation rather than
+  implement them again. Run targeted regressions, then Android and shared suites.
+- Observed remote baseline: shared tests passed; Android 321/322 passed. CompactControlsTest's TV
+  focus assertion failed. Signed release APK compiled but publication was blocked by that CI job.
+- Corrected native test screen qualifiers and full-screen bounds; TV tests now establish keyboard
+  mode/window focus, use Android focus search, and send the OK key to the focused control. All
+  three compact-control tests pass locally with valid portrait, landscape and television renders.
+- Retry consults the existing kept-download policy before any cache reset. Responsive dock moves
+  retain the focused transport. TV subtitle detail stays at 14sp. Desktop keeps its original theme
+  choices by filtering the Android-only Glass option. Full shared/Android suites are running.
