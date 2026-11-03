@@ -1,3 +1,4 @@
+import java.time.Duration
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -332,7 +333,7 @@ android {
                 // an hour on CI. Each class starting clean costs a few seconds and removes all of it.
                 it.forkEvery = 1
                 // Bound stalled native render tests and identify the last running case in CI.
-                it.timeout.set(java.time.Duration.ofMinutes(15))
+                it.timeout.set(Duration.ofMinutes(15))
                 it.testLogging.events("started", "failed", "skipped")
             }
         }
