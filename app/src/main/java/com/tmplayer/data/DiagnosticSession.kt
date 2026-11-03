@@ -97,6 +97,7 @@ object DiagnosticSession {
         val target = DiagnosticJournal(root, serial)
         try {
             target.record("SESSION_START", "serial=$serial version=${BuildConfig.VERSION_NAME} code=${BuildConfig.VERSION_CODE} package=${context.packageName} android=${Build.VERSION.SDK_INT} model=${Build.MODEL} abis=${Build.SUPPORTED_ABIS.joinToString()} pid=${Process.myPid()} maxHeap=${Runtime.getRuntime().maxMemory()}")
+            target.flush()
             if (!prefs.edit().putLong("serial", serial).putBoolean("active", true).commit()) throw java.io.IOException("Cannot persist log serial")
         } catch (e: Exception) { runCatching { target.close() }; throw e }
         capturePaused = false; dropped.set(0); journal = target; mutable.value = Status(serial, true)
@@ -145,7 +146,9 @@ object DiagnosticSession {
         timer?.cancel(); timer = null; logcat?.destroy(); logcat = null
         reader?.join(1500); reader = null
         val barrier = java.util.concurrent.FutureTask<Unit>({ Unit })
-        worker.queue.put(barrier); barrier.get(10, TimeUnit.SECONDS)
+        try { worker.execute(barrier) }
+        catch (_: java.util.concurrent.RejectedExecutionException) { worker.queue.put(barrier) }
+        barrier.get(10, TimeUnit.SECONDS)
         runCatching { target.record("SESSION_STOP", "serial=${target.serial} dropped=${dropped.get()} captureError=${mutable.value.error.orEmpty()}") }
         journal = null
         runCatching { target.close() }.onFailure { mutable.value = mutable.value.copy(error = it.message) }
