@@ -240,14 +240,17 @@ fun Modifier.tvHoldsFocus(first: FocusRequester): Modifier {
         .onFocusChanged { gate.focus(it.hasFocus) }
         .onKeyEvent { event ->
             val dir = arrow(event) ?: return@onKeyEvent false
+            com.tmplayer.platform.Logger.i("tv-focus", "held key=$dir phase=${event.type} rtl=$rtl")
             if (event.type == KeyEventType.KeyDown) {
                 gate.triedOut = false
                 val moved = manager.moveFocus(dir)
+                com.tmplayer.platform.Logger.i("tv-focus", "held spatial=$dir moved=$moved exitAttempt=${gate.triedOut}")
                 // Decorative parents can make spatial search choose outside the card. Fall back
                 // to its reading order, with the same exit fence, so every answer stays reachable.
                 if ((!moved || gate.triedOut) && (dir == FocusDirection.Left || dir == FocusDirection.Right)) {
                     val previous = (dir == FocusDirection.Left) != rtl
-                    manager.moveFocus(if (previous) FocusDirection.Previous else FocusDirection.Next)
+                    val ordered = manager.moveFocus(if (previous) FocusDirection.Previous else FocusDirection.Next)
+                    com.tmplayer.platform.Logger.i("tv-focus", "held previous=$previous moved=$ordered exitAttempt=${gate.triedOut}")
                 }
             }
             true

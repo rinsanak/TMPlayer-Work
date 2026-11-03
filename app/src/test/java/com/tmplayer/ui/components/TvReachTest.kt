@@ -24,6 +24,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
 import com.tmplayer.data.FormFactor
 import com.tmplayer.ui.browse.underTvBar
 import com.tmplayer.ui.connect.ConnectBannerView
@@ -52,11 +54,28 @@ abstract class TvReachFixture {
 
     private var controller: org.robolectric.android.controller.ActivityController<ComponentActivity>? = null
 
+    private val previousSink = com.tmplayer.platform.Logger.sink
+    protected val focusEvents = mutableListOf<String>()
+    protected val focusBounds = linkedMapOf<String, String>()
+
+    @org.junit.Before
+    fun collectFocusTrace() {
+        com.tmplayer.platform.Logger.sink = object : com.tmplayer.platform.LogSink {
+            override fun i(tag: String, message: String) { if (tag == "tv-focus") focusEvents += message }
+            override fun w(tag: String, message: String, error: Throwable?) { if (tag == "tv-focus") focusEvents += message }
+        }
+    }
+
     @After
     fun tearDown() {
-        controller?.pause()?.stop()?.destroy()
-        FormFactor.override(false)
+        try { controller?.pause()?.stop()?.destroy() }
+        finally { FormFactor.override(false); com.tmplayer.platform.Logger.sink = previousSink }
     }
+
+    protected fun focusTrace(): String = "windowFocus=" + activity.window.decorView.hasWindowFocus() +
+        " nativeFocus=" + activity.currentFocus?.javaClass?.simpleName +
+        " bounds=" + focusBounds + " events=" + focusEvents
+
 
     protected lateinit var activity: ComponentActivity
     protected var focused: String? = null
@@ -66,7 +85,7 @@ abstract class TvReachFixture {
     protected var cardShown by mutableStateOf(false)
     protected val tile = List(3) { FocusRequester() }
 
-    protected fun Modifier.named(name: String) = onFocusChanged { if (it.isFocused) focused = name else if (focused == name) focused = null }
+    protected fun Modifier.named(name: String) = onGloballyPositioned { focusBounds[name] = it.boundsInRoot().toString() }.onFocusChanged { if (it.isFocused) focused = name else if (focused == name) focused = null }
 
     protected fun compose(glass: Boolean = false, rtl: Boolean = false) {
         kotlinx.coroutines.runBlocking {
@@ -144,8 +163,9 @@ abstract class TvReachFixture {
 
 
     protected fun key(code: Int) {
-        activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
-        activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+        val down = activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
+        val up = activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+        focusEvents += "dispatch key=$code down=$down up=$up"
         idle()
     }
 
@@ -235,9 +255,9 @@ class TvReachCardTest : TvReachFixture() {
         key(KeyEvent.KEYCODE_DPAD_UP)
         assertEquals("keep", focused)
         key(KeyEvent.KEYCODE_DPAD_LEFT)
-        assertEquals("change", focused)
+        assertEquals(focusTrace(), "change", focused)
         key(KeyEvent.KEYCODE_DPAD_LEFT)
-        assertEquals("change", focused)
+        assertEquals(focusTrace(), "change", focused)
 
         // Answered: the remote is back on the tile it was on.
         cardShown = false
@@ -265,9 +285,9 @@ class TvReachGlassCardTest : TvReachFixture() {
         key(KeyEvent.KEYCODE_DPAD_UP)
         assertEquals("keep", focused)
         key(KeyEvent.KEYCODE_DPAD_LEFT)
-        assertEquals("change", focused)
+        assertEquals(focusTrace(), "change", focused)
         key(KeyEvent.KEYCODE_DPAD_LEFT)
-        assertEquals("change", focused)
+        assertEquals(focusTrace(), "change", focused)
 
         // Answered: the remote is back on the tile it was on.
         cardShown = false
@@ -295,9 +315,9 @@ class TvReachGlassRtlCardTest : TvReachFixture() {
         key(KeyEvent.KEYCODE_DPAD_UP)
         assertEquals("keep", focused)
         key(KeyEvent.KEYCODE_DPAD_RIGHT)
-        assertEquals("change", focused)
+        assertEquals(focusTrace(), "change", focused)
         key(KeyEvent.KEYCODE_DPAD_RIGHT)
-        assertEquals("change", focused)
+        assertEquals(focusTrace(), "change", focused)
 
         // Answered: the remote is back on the tile it was on.
         cardShown = false

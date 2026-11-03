@@ -57,6 +57,10 @@ jobs:
 
       # Debug only: the promo and release variants run the same test sources. Since AGP 9 only
       # the tested build type (debug) gets a unit test task at all, so this is every app test.
+      - name: Check Glass TV key routing
+        timeout-minutes: 6
+        run: ./gradlew :app:testDebugUnitTest --tests "*TvReachGlass*Test" --info
+
       - name: Check diagnostic, Glass, player and navigation regressions
         timeout-minutes: 10
         run: ./gradlew :app:testDebugUnitTest --tests "*DiagnosticSessionTest" --tests "*GlassCards*Test" --tests "*PlayerExtras*Test" --tests "*FastScrollerRender*Test" --tests "*TvReach*Test"
