@@ -36,4 +36,19 @@ existing Home and transport layouts. Real signed-in TV/phone playback cannot be 
   three compact-control tests pass locally with valid portrait, landscape and television renders.
 - Retry consults the existing kept-download policy before any cache reset. Responsive dock moves
   retain the focused transport. TV subtitle detail stays at 14sp. Desktop keeps its original theme
-  choices by filtering the Android-only Glass option. Full shared/Android suites are running.
+  choices by filtering the Android-only Glass option. Local shared/Android suites and debug assembly passed: 1,995 core tests (13 skipped), 197 UI
+  tests and all 322 Android tests, with zero failures or errors. Native phone and TV frames were
+  visually inspected, including the Glass selector and a populated chapter/time control row.
+
+## Release verification
+
+- Published stable v1.0.4 from commit 685f294991670c0c5b576f73b77850c5f21e9a45. GitHub's
+  Android Test and build job and signed Android release job succeeded.
+- Downloaded the published universal APK and the live latest/download/latest.json feed. Both
+  report 1.0.4 / 1000499. Package remains com.rinsanak.tgstream, minSdk 23, targetSdk 35, ARM64
+  and ARMv7. APK size 34,229,143 bytes; SHA-256 matches the feed and release asset metadata:
+  44bc34caeab5a5e02e93be01ae8832acaf7479339185019069fd9f590ff03e79.
+- apksigner verified the published APK. Its certificate matches the installed-channel 1.0.3 APK:
+  3580acc62809ab114ccb00d567d24fe3b2aee2cc4f1aa02e2d5242ae27119686.
+- Physical signed-in TV/phone streaming, network interruption and actual-device Retry could not
+  be exercised here. Automated checks and screenshots are not a claim of device playback testing.
