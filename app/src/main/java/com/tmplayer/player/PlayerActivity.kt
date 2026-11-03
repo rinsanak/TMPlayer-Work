@@ -634,6 +634,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
     private fun uploadId(): Int = if (playingQuality != 0 && uploadFileId != 0) uploadFileId else fileId
     private fun uploadSize(): Long = if (playingQuality != 0 && uploadFileId != 0) uploadSizeBytes else fileSizeBytes
     private var resumeMs = 0L
+    private var lastPlaybackPositionMs = 0L
 
     /** When the press that opened this video happened, from the intent ([EXTRA_PRESSED_AT]); 0 unknown. */
     @Volatile
@@ -977,6 +978,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
     private fun sampleWatch() {
         val exo = player ?: return
+        if (exo.currentPosition > 0) lastPlaybackPositionMs = exo.currentPosition
         if (watch.done) return
         if (watchPicture == null) {
             exo.videoFormat?.let { format ->
@@ -1144,6 +1146,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
     /** Every byte the player's data sources have handed Media3, counted on its loading thread. */
     private val readBytes = java.util.concurrent.atomic.AtomicLong()
+    private val lastReaderProgressAt = java.util.concurrent.atomic.AtomicLong()
 
     /** [readBytes] when the loader came up, so the line counts this opening's bytes only. */
     private var openingBytesAt = 0L
@@ -1160,6 +1163,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         override fun onTransferStart(source: androidx.media3.datasource.DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean) = Unit
         override fun onBytesTransferred(source: androidx.media3.datasource.DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean, bytesTransferred: Int) {
             readBytes.addAndGet(bytesTransferred.toLong())
+            if (bytesTransferred > 0) lastReaderProgressAt.set(SystemClock.elapsedRealtime())
             // One atomic read per call once logged, nothing more on the loading thread.
             if (startStages.get() and STAGE_BYTES == 0) markStart("first bytes read", STAGE_BYTES)
         }
@@ -1386,6 +1390,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
      */
     private var openingWatch: Job? = null
     private var lastProgressAtMs = 0L
+    private var lastDownloadedTotal = 0L
     private var lastProgressBytes = -1L
     private var lastBufferedMs = -1L
     private var slowStartUp = false
@@ -1457,7 +1462,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         statusPoster = findViewById(R.id.status_poster)
         statusMeta = findViewById(R.id.status_meta)
         statusRetry = findViewById<android.widget.Button>(R.id.status_retry).apply {
-            setOnClickListener { retryPlayback() }
+            setOnClickListener { cleanRetry() }
         }
         statusReload = findViewById<android.widget.Button>(R.id.status_reload).apply {
             // Try again on the sheet that says nothing is arriving: see [showSlowStart].
@@ -3318,7 +3323,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             visibility = View.VISIBLE
             setOnClickListener {
                 text = L.commonTryAgain
-                setOnClickListener { retryPlayback() }
+                setOnClickListener { cleanRetry() }
                 consented.complete(true)
             }
             requestFocus()
@@ -4032,6 +4037,8 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         trickplayPath = null
         trickplaySpans = emptyList()
         resumeMs = 0L
+        lastPlaybackPositionMs = 0L
+        lastDownloadedTotal = 0L
         resumeNotice = null
         resumeTracks = null
         chapters = emptyList()
@@ -4245,6 +4252,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             newPosition: Player.PositionInfo,
             reason: Int,
         ) {
+            if (reason == Player.DISCONTINUITY_REASON_SEEK) lastPlaybackPositionMs = newPosition.positionMs.coerceAtLeast(0)
             // A paused playhead moved by a seek may have left the skip pill's stretch or the
             // next-up card's last half minute, or come into them.
             wakeEndWatch()
@@ -5353,7 +5361,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             visibility = View.VISIBLE
             setOnClickListener {
                 text = L.commonTryAgain
-                setOnClickListener { retryPlayback() }
+                setOnClickListener { cleanRetry() }
                 quietly { player?.seekTo(0) }
                 player?.playWhenReady = true
                 hideStatus()
@@ -6072,11 +6080,12 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         if (local.isDownloadingActive && !local.isDownloadingCompleted && local.downloadedPrefixSize != lastProgressBytes) {
             com.tmplayer.player.LineSpeed.note(speed.bytesPerSec)
         }
-        // Any change of the prefix is TDLib doing something, a seek's reset to zero included.
-        if (local.downloadedPrefixSize != lastProgressBytes) {
-            lastProgressBytes = local.downloadedPrefixSize
-            noteOpeningProgress()
-        }
+        // A window can move while its prefix length stays the same, and a reset to zero is
+        // not a new byte. Follow total downloaded bytes plus the data source's actual reads.
+        val arrived = local.downloadedSize > lastDownloadedTotal
+        lastDownloadedTotal = local.downloadedSize
+        lastProgressBytes = local.downloadedPrefixSize
+        if (arrived) noteOpeningProgress()
         // Throttled rather than rendered per update. TDLib emits one of these every few hundred
         // kilobytes, which at a few MB/s is a dozen a second, and each one re-lays-out the whole
         // loading sheet on the main thread while the decoder is starting up. No figure on that
@@ -6959,7 +6968,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             visibility = View.VISIBLE
             setOnClickListener {
                 text = L.commonTryAgain
-                setOnClickListener { retryPlayback() }
+                setOnClickListener { cleanRetry() }
                 keepWatching(next)
             }
             requestFocus()
@@ -8113,6 +8122,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                 delay(OPENING_WATCH_TICK_MS)
                 val exo = player ?: return@launch
                 if (openingFilm || exo.playbackState != Player.STATE_BUFFERING) return@launch
+                if (lastReaderProgressAt.get() > lastProgressAtMs) noteOpeningProgress()
                 val buffered = exo.bufferedPosition
                 if (buffered > lastBufferedMs) {
                     if (lastBufferedMs >= 0) noteOpeningProgress()
@@ -8128,7 +8138,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                     nudged = true
                     Td.nudgeForStream()
                 }
-                if (OpeningStall.stalled(opening = true, local = local, lastProgressAtMs, SystemClock.elapsedRealtime())) {
+                if (OpeningStall.stalled(opening = true, local = local, lastProgressAtMs, SystemClock.elapsedRealtime(), stallMs = StreamRecovery.REBUFFER_STALL_MS)) {
                     stalledMidPlay = true
                     showSlowStart()
                     return@launch
@@ -8305,7 +8315,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         lifecycleScope.launch {
             if (retryable) {
                 statusReload?.apply {
-                    text = L.commonReload
+                    text = L.commonTryAgain
                     visibility = View.VISIBLE
                     markPrimaryAction(this)
                     requestFocus()
@@ -8389,33 +8399,74 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
      * file as it is removed, and the entry comes off the downloads list as well as off the disk so
      * nothing resumes into the hole.
      */
-    private fun reloadFromScratch() {
+    private fun reloadFromScratch() = cleanRetry()
+
+    /** Release readers before deleting the stream, and rebuild at the captured timeline position. */
+    private fun cleanRetry() {
         if (reloading) return
-        reloading = true
-        hideFailureActions()
-        statusRetry?.visibility = View.GONE
-        lifecycleScope.launch {
-            val plan = runCatching { reloadPlan() }.getOrDefault(Reload.Plan.PlainRetry)
-            failurePinned = false
-            showStatus(Reload.status(plan))
-            if (plan == Reload.Plan.StartOver) {
-                val session = Td.awaitAuthorizedSession()
-                runCatching {
-                    Td.cancelDownload(fileId)
-                    // Off the downloads list as well as off the disk: an entry left behind is a
-                    // TDLib record of a file it no longer has, which Downloads draws as an empty
-                    // row.
-                    session.client.removeFileFromDownloads(fileId, deleteFromCache = true)
-                    Td.deleteFile(fileId)
-                }
-            }
-            reloading = false
-            // The player is thrown away rather than re-prepared: its media source still holds the
-            // descriptor of the file just deleted, and preparing over that reads the bytes this
-            // press was here to get rid of. The surface goes with it, so [startPlayback] does not
-            // stack a second one over the first: see [releasePlayerAndSurface].
-            if (plan == Reload.Plan.StartOver) releasePlayerAndSurface()
+        if (fileId <= 0 || downloadedFile != null) {
+            // A user-owned offline file is not a disposable streaming cache.
             retryPlayback()
+            return
+        }
+        reloading = true
+        val position = StreamRecovery.resumeAt(player?.currentPosition, lastPlaybackPositionMs.takeIf { it > 0 } ?: resumeMs)
+        val ids = StreamRecovery.fileIds(fileId, pieces.map { it.fileId })
+        openingWatch?.cancel()
+        rebufferWatch?.cancel()
+        automaticMsoneJob?.cancel()
+        failurePinned = false
+        slowStartUp = false
+        stalledMidPlay = false
+        showStatus(L.playerTryingAgain)
+        player?.pause()
+        resumeMs = position
+        lifecycleScope.launch {
+            try {
+                val session = withTimeoutOrNull(20_000) { Td.awaitAuthorizedSession() }
+                    ?: throw java.io.IOException("Telegram session unavailable")
+                kotlinx.coroutines.withTimeout(30_000) {
+                StreamRecovery.reset(ids, position,
+                    closeReaders = { releasePlayerAndSurface(); letGoOfStreamBounds() },
+                    cancel = { id ->
+                        if (OfflineDownloads.isDownloading(id)) throw java.io.IOException("An offline download is using this file")
+                        com.tmplayer.player.StreamWarmup.claim(id)
+                        val cancelled = session.client.cancelDownloadFile(id, false)
+                        if (cancelled is dev.g000sha256.tdl.TdlResult.Failure) throw java.io.IOException(cancelled.message)
+                    },
+                    erase = { id ->
+                        val removed = session.client.deleteFile(id)
+                        if (removed is dev.g000sha256.tdl.TdlResult.Failure) throw java.io.IOException(removed.message)
+                    },
+                    reopen = { at ->
+                    resumeMs = at
+                if (joinedSource != null && !prepareJoined(session.client)) return@reset
+                downloadedFile = null
+                downloadComplete = false
+                downloadedFraction = 0f
+                trickplayPath = null
+                trickplaySpans = emptyList()
+                lastProgressBytes = -1L
+                lastDownloadedTotal = 0L
+                readBytes.set(0)
+                lastReaderProgressAt.set(0)
+                settingsSubtitlesPending = true
+                automaticMsoneStarted = false
+                runCatching { Td.retryConnecting() }
+                Log.i("TMPlayer", "Clean retry: files=${ids.size}, resumeMs=$position, cache reset before source rebuild")
+                reloading = false
+                startPlayback(session.client)
+                    },
+                )
+                }
+            } catch (failure: kotlinx.coroutines.TimeoutCancellationException) {
+                showError(L.errorsScreenFailedTitle, retryable = true)
+            } catch (failure: kotlinx.coroutines.CancellationException) {
+                throw failure
+            } catch (failure: Exception) {
+                Log.w("TMPlayer", "Clean retry failed: ${failure.javaClass.simpleName}")
+                showError(L.errorsScreenFailedTitle, retryable = true)
+            } finally { reloading = false }
         }
     }
 
@@ -8494,6 +8545,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             while (true) {
                 delay(OPENING_WATCH_TICK_MS)
                 if (!openingFilm) return@launch
+                if (lastReaderProgressAt.get() > lastProgressAtMs) noteOpeningProgress()
                 val buffered = player?.bufferedPosition ?: -1L
                 if (buffered > lastBufferedMs) {
                     if (lastBufferedMs >= 0) noteOpeningProgress()
@@ -8508,7 +8560,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                     nudged = true
                     Td.nudgeForStream()
                 }
-                if (OpeningStall.stalled(opening = true, local = local, lastProgressAtMs, SystemClock.elapsedRealtime())) {
+                if (OpeningStall.stalled(opening = true, local = local, lastProgressAtMs, SystemClock.elapsedRealtime(), stallMs = StreamRecovery.OPEN_STALL_MS)) {
                     showSlowStart()
                     return@launch
                 }
@@ -8593,21 +8645,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
      * buffering; a stop and a prepare closes the data source and opens it again, which asks TDLib
      * for the bytes once more, from where the player stands.
      */
-    private fun tryOpeningAgain() {
-        slowStartUp = false
-        stalledMidPlay = false
-        recoveryAttempts = 0
-        App.backgroundScope.launch { runCatching { Td.retryConnecting() } }
-        showStatus(L.playerTryingAgain)
-        val exo = player
-        if (exo == null) {
-            retryPlayback()
-            return
-        }
-        exo.stop()
-        exo.prepare()
-        exo.playWhenReady = true
-    }
+    private fun tryOpeningAgain() = cleanRetry()
 
     /** Download first on [showSlowStart]: the video joins the download queue and the player steps back. */
     private fun downloadFirst() {

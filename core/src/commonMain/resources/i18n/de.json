@@ -2899,6 +2899,8 @@
     "black_detail": "Dunkel auf echtem Schwarz, für OLED-Bildschirme",
     "dark": "Dunkel",
     "dark_detail": "Immer dunkel",
+    "glass": "Glas",
+    "glass_detail": "Durchscheinende Flächen und fließende Animationen",
     "light": "Hell",
     "light_detail": "Immer hell",
     "system": "System",

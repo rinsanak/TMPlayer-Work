@@ -2899,6 +2899,8 @@
     "black_detail": "OLED ekranlar için gerçek siyah üzerinde koyu",
     "dark": "Koyu",
     "dark_detail": "Her zaman koyu",
+    "glass": "Cam",
+    "glass_detail": "Yarı saydam paneller ve akıcı animasyonlar",
     "light": "Açık",
     "light_detail": "Her zaman açık",
     "system": "Sistem",

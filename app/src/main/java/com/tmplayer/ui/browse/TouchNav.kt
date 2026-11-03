@@ -1,5 +1,7 @@
 package com.tmplayer.ui.browse
 
+import com.tmplayer.ui.theme.glassPanel
+
 import android.view.accessibility.AccessibilityManager
 import com.tmplayer.ui.nav.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -439,7 +441,7 @@ private fun ActionsPill(actions: @Composable RowScope.() -> Unit, modifier: Modi
             .height(ACTIONS_HEIGHT)
             .shadow(BAR_SHADOW, CircleShape)
             .clip(CircleShape)
-            .background(FloatingTone.menu)
+            .background(FloatingTone.menu).glassPanel()
             .border(floatingBorder(), CircleShape)
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -688,7 +690,7 @@ private fun FloatingBar(
                 .then(if (vertical) Modifier.width(RAIL_WIDTH) else Modifier.height(BAR_HEIGHT))
                 .shadow(BAR_SHADOW, barShape)
                 .clip(barShape)
-                .background(FloatingTone.menu)
+                .background(FloatingTone.menu).glassPanel()
                 .border(floatingBorder(), barShape)
                 .padding(if (vertical) PaddingValues(vertical = RAIL_INSET) else PaddingValues(horizontal = 6.dp)),
             contentAlignment = Alignment.Center,
@@ -959,7 +961,7 @@ private fun ProfilePopover(
                     .widthIn(max = POPOVER_WIDTH)
                     .shadow(BAR_SHADOW, POPOVER_SHAPE)
                     .clip(POPOVER_SHAPE)
-                    .background(FloatingTone.dialog)
+                    .background(FloatingTone.dialog).glassPanel()
                     .border(floatingBorder(), POPOVER_SHAPE)
                     // Taps inside the card stay inside it rather than reaching the scrim.
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}

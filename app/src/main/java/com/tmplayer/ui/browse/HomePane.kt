@@ -666,7 +666,7 @@ internal fun HomePane(
                                     val chat = record.chatTitle.ifEmpty { chatTitle(record.chatId) }
                                     val strings = LocalStrings.current
                                     VideoTile(
-                                        // The name under the picture, then Telegram's facts; none on the picture.
+                                        artworkOnly = true,
                                         title = remember(item, strings) { continueCardTitle(item, strings) },
                                         onClick = { onResume(record) },
                                         // The detail panel, as on every other tile here: it already
@@ -758,7 +758,7 @@ internal fun HomePane(
                 // Home of Continue watching alone gives no clue that it could hold more. Never
                 // focusable: the remote has nothing to do here, and the way to star a chat is in
                 // the chat list, which the hint names.
-                if (noFavourites) {
+                if (!com.tmplayer.data.TgStreamUi.active && noFavourites) {
                     item(key = "favourites-hint", contentType = "favourites-hint") {
                         FavouritesHintCard(s.homeFavouritesHint(if (touch) "phone" else "tv"), start = start, end = end)
                     }
@@ -1077,6 +1077,7 @@ private fun ShelfTile(
             onLongClick = { onHold(entry.item, chatTitle(entry.item.chatId)) },
             dense = touch,
             poster = poster,
+            artworkOnly = true,
             // Its first bytes asked for while the card is in focus or under the finger.
             modifier = modifier,
         )
@@ -1093,6 +1094,7 @@ private fun ShelfTile(
                 onClick = { onOpenSeries(entry.series) },
                 dense = touch,
                 poster = poster,
+            artworkOnly = true,
                 modifier = modifier.warmUpOnIntent(next),
             )
         }
@@ -1259,16 +1261,6 @@ private fun PlaceholderTile(width: Dp, touch: Boolean, poster: Boolean = false) 
                 .clip(RoundedCornerShape(Corner.Medium))
                 .background(Tone.surface),
         )
-        Spacer(Modifier.height(if (touch) 8.dp else 10.dp))
-        if (touch) {
-            M3Text(" ", style = M3MaterialTheme.typography.titleSmall, minLines = 2, maxLines = 2)
-            Spacer(Modifier.height(2.dp))
-            M3Text(" ", style = M3MaterialTheme.typography.labelMedium, maxLines = 1)
-        } else {
-            Text(" ", style = MaterialTheme.typography.titleMedium, maxLines = 1)
-            Spacer(Modifier.height(2.dp))
-            Text(" ", style = MaterialTheme.typography.labelMedium, maxLines = 1)
-        }
     }
 }
 

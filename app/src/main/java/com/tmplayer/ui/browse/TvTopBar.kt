@@ -1,5 +1,7 @@
 package com.tmplayer.ui.browse
 
+import com.tmplayer.ui.theme.glassPanel
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -181,7 +183,7 @@ internal fun TvTopBar(
                         false
                     }
                 }
-                .focusGroup(),
+                .focusGroup().glassPanel(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ProfileButton(

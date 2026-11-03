@@ -2899,6 +2899,8 @@
     "black_detail": "완전한 검정 바탕의 다크, OLED 화면용",
     "dark": "다크",
     "dark_detail": "항상 어둡게",
+    "glass": "글래스",
+    "glass_detail": "반투명 패널과 부드러운 애니메이션",
     "light": "라이트",
     "light_detail": "항상 밝게",
     "system": "시스템",

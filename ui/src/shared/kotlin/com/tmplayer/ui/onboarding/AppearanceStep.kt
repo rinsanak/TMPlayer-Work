@@ -118,7 +118,7 @@ fun AppearanceStep(
         val controls: @Composable () -> Unit = {
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Section(s.settingsTheme, themeDetail(s, theme, form)) {
-                    Pills(ThemeChoice.entries, theme, { it.label }) { scope.launch { settings.setThemeChoice(it) } }
+                    Pills(ThemeChoice.options, theme, { it.label }) { scope.launch { settings.setThemeChoice(it) } }
                 }
                 // Pure black, the usual switch under the theme, offered wherever the app can be
                 // dark; the gap above it is the column's, so it folds away with no space left over.

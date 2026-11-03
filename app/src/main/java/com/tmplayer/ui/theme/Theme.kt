@@ -225,8 +225,21 @@ fun TMPlayerTheme(content: @Composable () -> Unit) {
     val scheme = animateAccentRoles(
         (if (touch) phoneScheme(dark, dynamic, black, accent) else TmSchemes.of(dark, black, accent))
             .let { if (touch && dynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) it else it.withCustomAccent(accent, customAccent, dark) }
+            .let { if (choice == ThemeChoice.Glass) it.copy(
+                primary = androidx.compose.ui.graphics.Color(0xFF75E4E5),
+                onPrimary = androidx.compose.ui.graphics.Color(0xFF071D27),
+                background = androidx.compose.ui.graphics.Color(0xFF080F20),
+                surface = androidx.compose.ui.graphics.Color(0xDD14273C),
+                surfaceContainer = androidx.compose.ui.graphics.Color(0xD91A2D46),
+                surfaceContainerLow = androidx.compose.ui.graphics.Color(0xDB152237),
+                surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xE02A3C57),
+                surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xEB344B67),
+                outline = androidx.compose.ui.graphics.Color(0x887DA6C9),
+            ) else it }
             .highContrast(highContrast),
     )
+
+    androidx.compose.runtime.SideEffect { com.tmplayer.ui.theme.Motion.glass = choice == ThemeChoice.Glass }
 
     // Both themes, always, and the form factor decides only the type scale. Two theme systems are
     // live because the two devices need different controls, and a shared screen reads one theme
@@ -255,6 +268,7 @@ fun TMPlayerTheme(content: @Composable () -> Unit) {
                 LocalContentColor provides scheme.onSurface,
                 LocalDarkTheme provides dark,
                 LocalPureBlack provides black,
+                com.tmplayer.ui.theme.LocalGlassTheme provides (choice == ThemeChoice.Glass),
             ) {
                 UiScaled(scale) { ProvideStrings(content) }
             }

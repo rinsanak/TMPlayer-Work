@@ -2899,6 +2899,8 @@
     "black_detail": "純黑背景的深色主題，適合 OLED 螢幕",
     "dark": "深色",
     "dark_detail": "一律使用深色",
+    "glass": "玻璃",
+    "glass_detail": "半透明面板與流暢動畫",
     "light": "淺色",
     "light_detail": "一律使用淺色",
     "system": "系統",

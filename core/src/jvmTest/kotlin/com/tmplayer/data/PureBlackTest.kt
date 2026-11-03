@@ -14,6 +14,12 @@ import java.nio.file.Files
 
 /** Black as a switch under the theme (2026-10-19), and the old fourth theme read as one. */
 class PureBlackTest {
+    @Test fun `Glass persists as an independent dark appearance without pure black`() = runBlocking {
+        settings.setThemeChoice(ThemeChoice.Glass)
+        assertEquals(ThemeChoice.Glass, settings.themeChoice.first())
+        assertTrue(ThemeChoice.Glass.isDark(false))
+        assertFalse(pureBlackGround(ThemeChoice.Glass, true, true))
+    }
 
     private val dir = Files.createTempDirectory("tm-pure-black").toFile()
     private val data = SettingsStore.openDataStore(dir.resolve(SettingsStore.FILE_NAME))
@@ -28,7 +34,7 @@ class PureBlackTest {
 
     @Test
     fun `the theme offers System, Light and Dark, and the switch is off by default`() = runBlocking {
-        assertEquals(listOf("System", "Light", "Dark"), ThemeChoice.entries.map { it.name })
+        assertEquals(listOf("System", "Light", "Dark", "Glass"), ThemeChoice.entries.map { it.name })
         assertEquals(ThemeChoice.System, settings.themeChoice.first())
         assertFalse(settings.pureBlack.first())
     }

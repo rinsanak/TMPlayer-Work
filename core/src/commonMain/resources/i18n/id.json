@@ -2899,6 +2899,8 @@
     "black_detail": "Gelap di atas hitam pekat, untuk layar OLED",
     "dark": "Gelap",
     "dark_detail": "Selalu gelap",
+    "glass": "Kaca",
+    "glass_detail": "Panel tembus cahaya dan animasi yang mengalir",
     "light": "Terang",
     "light_detail": "Selalu terang",
     "system": "Sistem",

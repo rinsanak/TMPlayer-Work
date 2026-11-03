@@ -51,6 +51,7 @@ internal fun SeriesCard(
     badge: (@Composable () -> Unit)? = null,
     /** A 2:3 poster card, in a grid of films and shows; a 16:9 card in a row of videos. */
     poster: Boolean = false,
+    artworkOnly: Boolean = false,
     /** Episodes posted since the viewer last watched the show: a "New" badge on the picture. */
     fresh: Boolean = false,
     /** A long press or a held OK: the show's menu ([ShowMenu]), as a video's tile opens its panel (HX20). */
@@ -64,6 +65,7 @@ internal fun SeriesCard(
         onLongClick = onLongClick ?: LocalSeriesHold.current?.let { hold -> { hold(series) } },
         dense = dense,
         poster = poster,
+        artworkOnly = artworkOnly,
         modifier = modifier,
         meta = { ink ->
             // A show already begun keeps its line in the accent; otherwise the tile's own colour.

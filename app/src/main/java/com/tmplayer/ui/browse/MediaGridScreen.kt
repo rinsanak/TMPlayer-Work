@@ -1,5 +1,8 @@
 package com.tmplayer.ui.browse
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+
 import com.tmplayer.ui.components.keepTopInSight
 import android.Manifest
 import android.app.Activity
@@ -2090,6 +2093,7 @@ internal fun MediaCard(
      * says, since only it knows whether the row or grid around it has room for a tall card.
      */
     poster: Boolean = false,
+    artworkOnly: Boolean = false,
     /** What the caption says in place of the file's own name: Home's New episodes row names the episode. */
     title: String? = null,
     /** The line of facts in place of the file's own (Home's New episodes row: the chat, quality and size). */
@@ -2105,6 +2109,7 @@ internal fun MediaCard(
         onFocused = onFocused,
         dense = dense,
         poster = poster,
+        artworkOnly = artworkOnly,
         selected = selected,
         // Every video card, in a chat's grid, Home and search: its stream warmed on focus or press.
         modifier = modifier.then(Modifier.warmUpOnIntent(item)),
@@ -2154,6 +2159,7 @@ internal fun VideoTile(
     meta: (@Composable (ink: androidx.compose.ui.graphics.ColorProducer) -> Unit)? = null,
     /** False for a card that writes its name on the art (Home's Continue watching), keeping only [meta] under it. */
     showTitle: Boolean = true,
+    artworkOnly: Boolean = false,
     art: @Composable BoxScope.() -> Unit,
 ) {
     val touch = isTouch()
@@ -2205,7 +2211,7 @@ internal fun VideoTile(
         ring = Modifier.focusRingDrawn(focusedState, accent, shape)
     }
     Column(
-        modifier
+        modifier.then(if (artworkOnly) Modifier.semantics { contentDescription = title } else Modifier)
             .fillMaxWidth()
             .then(
                 if (touch) {
@@ -2244,7 +2250,7 @@ internal fun VideoTile(
         // Two lines, and always two where a row of tiles sits under this one, so the pictures
         // beneath a short name stay in a straight line with the rest.
         val lines = if (poster || dense) 2 else 1
-        if (!showTitle) {
+        if (!showTitle || artworkOnly) {
             // The name is on the art; the facts under it are the whole caption.
         } else if (touch) {
             M3Text(
@@ -2265,7 +2271,7 @@ internal fun VideoTile(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (meta != null) {
+        if (meta != null && !artworkOnly) {
             Spacer(Modifier.height(2.dp))
             meta(ink)
         }

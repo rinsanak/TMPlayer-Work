@@ -2899,6 +2899,8 @@
     "black_detail": "Escuro sobre preto de verdade, para telas OLED",
     "dark": "Escuro",
     "dark_detail": "Sempre escuro",
+    "glass": "Vidro",
+    "glass_detail": "Painéis translúcidos e animações fluidas",
     "light": "Claro",
     "light_detail": "Sempre claro",
     "system": "Sistema",

@@ -276,6 +276,8 @@ class PlayerControls(
         describeFromCatalog(root)
         setShape(VideoScale.Fit)
         if (!isTv) setUpPhone(root) else setUpTv(root)
+        cluster.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> cluster.post { arrangeTransport() } }
+        arrangeTransport()
 
         // A press of D-pad left or right on the bar steps the position by this much: coarser than
         // the bare-picture arrow jumps on purpose, because opening the row to scrub is travelling,
@@ -574,7 +576,8 @@ class PlayerControls(
      * is left with subtitles, audio, speed and rotate, plus picture shape and the lock when wide.
      */
     private fun setUpPhone(root: View) {
-        listOf(tint, topBar, center, times).forEach { it.visibility = View.VISIBLE }
+        listOf(topBar, center, times).forEach { it.visibility = View.VISIBLE }
+        tint.visibility = View.GONE
         listOf(timeText, title, subtitle).forEach { it.visibility = View.GONE }
 
         wire(centerPlay) { onTogglePlay(); renderPlayPause(animate = true) }
@@ -614,6 +617,21 @@ class PlayerControls(
      * Shows or hides the phone's two extra buttons by the room the row has. Before the first
      * layout the width is the screen's, less the row's padding.
      */
+    private fun arrangeTransport() {
+        val row = timeText.parent as? android.widget.LinearLayout ?: return
+        val dock = cluster as? android.widget.LinearLayout ?: return
+        val wide = (cluster.width.takeIf { it > 0 } ?: cluster.resources.displayMetrics.widthPixels) /
+            cluster.resources.displayMetrics.density >= 600f
+        val parent = if (wide) row else dock
+        if (center.parent === parent) return
+        (center.parent as? android.view.ViewGroup)?.removeView(center)
+        center.layoutParams = android.widget.LinearLayout.LayoutParams(
+            if (wide) android.view.ViewGroup.LayoutParams.WRAP_CONTENT else android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            (48 * cluster.resources.displayMetrics.density).toInt(),
+        )
+        parent.addView(center, if (wide) 0 else dock.indexOfChild(timeBar) + 1)
+    }
+
     private fun fitRow() {
         if (isTv) {
             shapeButton.visibility = if (shapeOffered) View.VISIBLE else View.GONE
@@ -648,15 +666,16 @@ class PlayerControls(
      * it the remote, so OK resumes, and its glyph turning is the only answer to either.
      */
     private fun setUpTv(root: View) {
-        listOf(centerPrevious, centerNext, centerPreviousCaption, centerNextCaption)
+        listOf(centerPreviousCaption, centerNextCaption)
             .forEach { it.visibility = View.GONE }
         clock.visibility = View.VISIBLE
         center.visibility = View.VISIBLE
         wire(centerPlay) { onTogglePlay(); renderPlayPause(animate = true) }
-        centerPlay.nextFocusDownId = R.id.controls_timebar
-        timeBar.nextFocusUpId = R.id.center_play_pause
+        centerPlay.nextFocusUpId = R.id.controls_timebar
+        centerPlay.nextFocusDownId = R.id.control_subtitles
+        timeBar.nextFocusDownId = R.id.center_play_pause
         // Down from the bar lands on the first button the row has.
-        timeBar.nextFocusDownId = R.id.control_subtitles
+        timeBar.nextFocusDownId = R.id.center_play_pause
         val more = root.findViewById<View>(R.id.control_tv_more)
         more.visibility = View.VISIBLE
         // Between speed and More: a press steps the shape, focus stays put for the next press,
@@ -793,17 +812,16 @@ class PlayerControls(
         previousCaption: String = "",
         nextCaption: String = "",
     ) {
-        if (isTv) return
         // Invisible rather than gone keeps the play disc dead centre whether or not there are
         // neighbours.
         centerPrevious.visibility = if (previousEpisode != null) View.VISIBLE else View.INVISIBLE
         describe(centerPrevious, previousLabel)
         centerPrevious.setOnClickListener { previousEpisode?.let(onPlayEpisode) }
-        caption(centerPreviousCaption, previousCaption.takeIf { previousEpisode != null })
+        centerPreviousCaption.visibility = View.GONE
         centerNext.visibility = if (nextEpisode != null) View.VISIBLE else View.INVISIBLE
         describe(centerNext, nextLabel)
         centerNext.setOnClickListener { nextEpisode?.let(onPlayEpisode) }
-        caption(centerNextCaption, nextCaption.takeIf { nextEpisode != null })
+        centerNextCaption.visibility = View.GONE
     }
 
     /**
@@ -957,10 +975,10 @@ class PlayerControls(
      * and the system's animations off keep the plain fade.
      */
     private fun slideEdges(showing: Boolean) {
-        if (isTv || com.tmplayer.ui.theme.Motion.reduced || !com.tmplayer.ui.theme.systemAnimatorsEnabled(container.context)) return
+        if (com.tmplayer.ui.theme.Motion.reduced || !com.tmplayer.ui.theme.systemAnimatorsEnabled(container.context)) return
         val travel = SLIDE_DP * container.resources.displayMetrics.density
         // Motion.Standard's curve, as the Compose screens ease.
-        val ease = android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)
+        val ease = android.view.animation.PathInterpolator(0.16f, 1f, 0.3f, 1f)
         val duration = if (showing) FADE_IN_MS else FADE_MS
         val edges = buildList {
             add(topBar to -travel)

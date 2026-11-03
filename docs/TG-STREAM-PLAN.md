@@ -81,3 +81,11 @@ updates the TMPlayer-Work 1.0.x fork only; do not claim it updates the separate 
 See TG-STREAM-MSONE-AUTO.md. The Android fork uses the official addon directly; desktop/web
 behavior stays as before. Android automatically tries one validated match after playback is
 ready, with manual choices taking precedence. Tests and the signed GitHub release follow.
+
+## 1.0.4 Home, recovery and appearance
+
+See TG-STREAM-1.0.4-PLAN.md. Android Home filters non-title content and duplicate cards; card
+captions are removed. A compact glass player dock, a selectable Glass appearance and a new
+adaptive icon are implemented. Reader-byte progress now keeps the longer streaming watchdog
+alive. User retries release sources before clearing the current stream and restore its position.
+Core policy and Android layout/render tests, signed build and update-feed verification follow.

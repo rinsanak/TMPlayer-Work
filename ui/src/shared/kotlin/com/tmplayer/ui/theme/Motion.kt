@@ -29,7 +29,9 @@ object Motion {
     const val Slow = 400
 
     /** Material's standard curve: off the mark briskly and a long, soft arrival. */
-    val Standard: Easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+    val Standard: Easing get() = if (glass) CubicBezierEasing(0.16f, 1f, 0.3f, 1f) else CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
+    var glass: Boolean by mutableStateOf(false)
 
     /**
      * How much a tile grows when the remote or the keyboard lands on it, on the television and

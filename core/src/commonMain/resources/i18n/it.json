@@ -2899,6 +2899,8 @@
     "black_detail": "Scuro su nero assoluto, per schermi OLED",
     "dark": "Scuro",
     "dark_detail": "Sempre scuro",
+    "glass": "Vetro",
+    "glass_detail": "Pannelli traslucidi e animazioni fluide",
     "light": "Chiaro",
     "light_detail": "Sempre chiaro",
     "system": "Sistema",

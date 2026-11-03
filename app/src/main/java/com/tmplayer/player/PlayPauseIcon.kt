@@ -66,7 +66,10 @@ class PlayPauseIcon @JvmOverloads constructor(
         }
     }
 
+    override fun drawableStateChanged() { super.drawableStateChanged(); invalidate() }
+
     override fun onDraw(canvas: Canvas) {
+        paint.color = if ((parent as? View)?.isFocused == true) Color.rgb(7, 29, 39) else Color.WHITE
         val scale = minOf(width, height) / VIEWPORT
         val dx = (width - VIEWPORT * scale) / 2f
         val dy = (height - VIEWPORT * scale) / 2f

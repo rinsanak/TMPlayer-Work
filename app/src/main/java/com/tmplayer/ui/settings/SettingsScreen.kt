@@ -1,5 +1,7 @@
 package com.tmplayer.ui.settings
 
+import com.tmplayer.ui.theme.glassPanel
+
 import com.tmplayer.ui.components.FastScroller
 import com.tmplayer.ui.components.keepTopInSight
 import android.content.Intent
@@ -720,9 +722,9 @@ fun SettingsScreen(
                             value = themeChoice.label,
                             icon = TmIcons.Theme,
                             canDecrease = themeChoice.ordinal > 0,
-                            canIncrease = themeChoice.ordinal < ThemeChoice.entries.lastIndex,
+                            canIncrease = themeChoice.ordinal < ThemeChoice.options.lastIndex,
                             onStep = { direction ->
-                                val next = ThemeChoice.entries.getOrNull(themeChoice.ordinal + direction)
+                                val next = ThemeChoice.options.getOrNull(themeChoice.ordinal + direction)
                                 if (next != null) scope.launch { settings.setThemeChoice(next) }
                             },
                         )
@@ -2455,7 +2457,7 @@ private fun RangeRow(
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Corner.Large))
-            .background(background)
+            .background(background).glassPanel()
             .onKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                 when (event.key) {
@@ -2801,7 +2803,7 @@ internal fun SectionTitle(text: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ThemePicker(current: ThemeChoice, onPick: (ThemeChoice) -> Unit) {
-    val options = ThemeChoice.entries
+    val options = ThemeChoice.options
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             options.forEachIndexed { index, choice ->
@@ -3025,7 +3027,7 @@ private fun StepperRow(
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .clip(RoundedCornerShape(Corner.Large))
-            .background(background)
+            .background(background).glassPanel()
             .onKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                 // Left and Right, not Up and Down: Up and Down move between settings, and Left
@@ -3397,7 +3399,7 @@ private fun FocusRow(
             .heightIn(min = 64.dp)
             // The filled card is how the focused row is found from a sofa.
             .clip(RoundedCornerShape(Corner.Large))
-            .background(background)
+            .background(background).glassPanel()
             .clickable(
                 interactionSource = interactions,
                 indication = null,

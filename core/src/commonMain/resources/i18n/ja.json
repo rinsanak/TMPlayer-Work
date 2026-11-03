@@ -2899,6 +2899,8 @@
     "black_detail": "真っ黒の背景のダーク、OLED画面向け",
     "dark": "ダーク",
     "dark_detail": "常にダーク",
+    "glass": "ガラス",
+    "glass_detail": "半透明のパネルと滑らかなアニメーション",
     "light": "ライト",
     "light_detail": "常にライト",
     "system": "システム",

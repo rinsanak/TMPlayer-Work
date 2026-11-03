@@ -16,10 +16,11 @@ enum class ThemeChoice(private val labelText: () -> String, private val descript
     System({ L.themeSystem }, { L.themeSystemDetail }),
     Light({ L.themeLight }, { L.themeLightDetail }),
     Dark({ L.themeDark }, { L.themeDarkDetail }),
+    Glass({ L.themeGlass }, { L.themeGlassDetail }),
     ;
 
     /** Whether this choice is drawn dark whatever the device says: Dark. */
-    val alwaysDark: Boolean get() = this == Dark
+    val alwaysDark: Boolean get() = this == Dark || this == Glass
 
     /**
      * Whether the app is drawn dark under this choice, with [systemDark] the device's own setting
@@ -27,7 +28,7 @@ enum class ThemeChoice(private val labelText: () -> String, private val descript
      */
     fun isDark(systemDark: Boolean): Boolean = when (this) {
         Light -> false
-        Dark -> true
+        Dark, Glass -> true
         System -> systemDark
     }
 
@@ -35,7 +36,7 @@ enum class ThemeChoice(private val labelText: () -> String, private val descript
      * Whether the Pure black switch is offered under this choice: wherever the app can be dark,
      * so System and Dark. Light hides it, since it changes nothing there.
      */
-    val offersPureBlack: Boolean get() = this != Light
+    val offersPureBlack: Boolean get() = this != Light && this != Glass
 
     /** The one word shown in a segment, in the UI language. */
     val label: String get() = labelText()
@@ -54,10 +55,12 @@ enum class ThemeChoice(private val labelText: () -> String, private val descript
             System -> L.themeSystemTvDetail
             Light -> L.themeLightDetail
             Dark -> L.themeDarkDetail
+            Glass -> L.themeGlassDetail
         }
 
     companion object {
         val Default = System
+        val options: List<ThemeChoice> get() = entries.filter { it != Glass || TgStreamUi.active }
 
         /**
          * The name Black was stored under while it was a fourth choice (until 2026-10-19). It now
@@ -76,7 +79,7 @@ enum class ThemeChoice(private val labelText: () -> String, private val descript
  * switch says, so turning Light back to System on a dark phone brings the black back.
  */
 fun pureBlackGround(choice: ThemeChoice, pureBlack: Boolean, systemDark: Boolean): Boolean =
-    pureBlack && choice.isDark(systemDark)
+    pureBlack && choice != ThemeChoice.Glass && choice.isDark(systemDark)
 
 /**
  * How large the whole interface is drawn, under Appearance as "Interface size" (CP59).

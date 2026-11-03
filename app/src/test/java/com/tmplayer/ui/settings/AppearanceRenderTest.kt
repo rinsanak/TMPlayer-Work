@@ -52,6 +52,23 @@ class AppearanceRenderTest {
     fun tearDown() {
         FormFactor.override(false)
         com.tmplayer.ui.theme.Motion.reduced = false
+        com.tmplayer.ui.theme.Motion.glass = false
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xhdpi")
+    fun glass() {
+        com.tmplayer.data.TgStreamUi.active = true
+        try {
+            runBlocking { settings.setThemeChoice(ThemeChoice.Glass) }
+            render(tv = false) { activity ->
+                assertTrue(texts(activity).any { it.contains("Glass") })
+                save("appearance-phone-glass.png", activity)
+            }
+        } finally {
+            runBlocking { settings.setThemeChoice(ThemeChoice.System) }
+            com.tmplayer.data.TgStreamUi.active = false
+        }
     }
 
     @Test

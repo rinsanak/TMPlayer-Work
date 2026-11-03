@@ -237,7 +237,9 @@ object HomeRows {
         val seen = HashSet<String>()
         // Continue watching off: nothing is in progress as far as Home goes, so a film part way
         // through still shows in its chat's row rather than vanishing from Home altogether.
-        val continueWatching = if (layout.continueWatching) continueWatching else emptyList()
+        val continueWatching = if (layout.continueWatching) continueWatching.filter {
+            !TgStreamUi.active || HomeContent.eligible(it.toMediaItem())
+        } else emptyList()
 
         val distinct = continueWatching.distinctBy { keyOf(it.chatId, it.messageId) }
         val everyResume = foldCopies(distinct)
@@ -327,7 +329,7 @@ object HomeRows {
                 )
             }
         }
-    }
+    }.let { if (TgStreamUi.active) HomeContent.clean(it) else it }
 
     /**
      * What a row's "See all" page lists once [items] have been read of its chats (Home's own and
@@ -408,6 +410,7 @@ object HomeRows {
         val fresh = ArrayList<MediaItem>(items.size)
         val ids = HashSet<String>()
         for (item in items) {
+            if (TgStreamUi.active && !HomeContent.eligible(item)) continue
             val key = item.progressKey
             val copy = copyOfContinuing(item)
             val partOfAShow = episode(item) && (key in inProgress || copy)
