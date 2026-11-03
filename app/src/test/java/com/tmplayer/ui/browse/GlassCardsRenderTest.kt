@@ -72,7 +72,8 @@ abstract class GlassCardsRenderFixture {
             walk(owner.semanticsOwner.unmergedRootSemanticsNode)
             assertTrue(texts.toString(), texts.any { "Quiet Hills" in it })
             assertTrue(texts.toString(), texts.any { "2020" in it })
-            assertTrue(texts.toString(), texts.contains(L.logsSessionStart)); assertTrue(texts.toString(), texts.contains(L.logsSessionStop))
+            assertFalse("Start Log belongs in Settings", texts.contains(L.logsSessionStart))
+            assertFalse("Stop Log belongs in Settings", texts.contains(L.logsSessionStop))
             assertFalse("in-app branding must not draw an app icon", markDrawn)
             val root = activity.window.decorView
             val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888); root.draw(Canvas(bitmap))

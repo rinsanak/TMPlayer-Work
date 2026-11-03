@@ -150,6 +150,8 @@ internal fun FeaturedCarousel(
         // Every page's title logo looked up, fetched and decoded ahead, from the page up on, so a
         // turn shows the next page's logo at once.
         com.tmplayer.ui.online.PrefetchTitleLogos(remember(picks) { picks.map { it.item to it.isShow } }, pager.currentPage)
+        val selectArtwork = LocalHomeArtworkSelection.current
+        LaunchedEffect(pager.currentPage, picks) { picks.getOrNull(pager.currentPage)?.let { selectArtwork(it.item) } }
 
         val still = rememberReducedMotion() || Motion.reduced
         val talkBack = rememberTouchExploration()

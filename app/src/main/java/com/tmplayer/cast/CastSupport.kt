@@ -120,7 +120,7 @@ object Cast {
         support?.let { return it }
         synchronized(this) {
             support?.let { return it }
-            val made = if (FormFactor.isTv(context)) NoCastSupport else runCatching { CastBuild.create(context.applicationContext) }.getOrDefault(NoCastSupport)
+            val made = NoCastSupport
             support = made
             return made
         }

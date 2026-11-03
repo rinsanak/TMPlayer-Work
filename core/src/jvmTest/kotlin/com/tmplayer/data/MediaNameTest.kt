@@ -7,6 +7,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MediaNameTest {
+    @Test fun `a one word channel prefix preserves every title word before the year`() {
+        assertEquals("Quiet Hills", parse("@CC_Quiet_Hills_2020_1080p.mkv").title)
+        assertEquals("Quiet Hills", parse("@TamilMob_LinkZz_Quiet_Hills_2020_1080p.mkv").title)
+        assertEquals("Quiet Hills", parse("@HEVC_Mob_Quiet_Hills_2020_1080p.mkv").title)
+    }
 
     // Pinned rather than read off the clock, so a test that passes today still passes in 2030.
     private fun parse(name: String) = MediaName.parse(name, maxYear = 2027)

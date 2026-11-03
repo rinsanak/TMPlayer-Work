@@ -18,7 +18,19 @@ object HomeContent {
         return if (name.isSeries) "show:${SeriesShelf.keyOf(name.title)}" else "film:${SeriesShelf.keyOf(name.title)}|${name.year}"
     }
     fun clean(rows: List<HomeRow>): List<HomeRow> {
-        val files = rows.flatMap { row -> when (row) {
+        fun originals(entries: List<ShelfEntry>): List<ShelfEntry> = entries.flatMap { entry ->
+            if (entry !is ShelfEntry.File || entry.item.versions.isEmpty()) listOf(entry)
+            else (listOf(entry.item) + entry.item.versions).distinctBy { it.id }
+                .map { ShelfEntry.File(it.copy(versions = emptyList())) }
+        }
+        // Cached groups are parsed again from the original files. An older parser could fold
+        // unrelated channel-prefixed titles into one card and keep that mistake on restart.
+        val regrouped = rows.map { row -> when (row) {
+            is HomeRow.Recent -> row.copy(entries = originals(row.entries))
+            is HomeRow.Chat -> row.copy(entries = originals(row.entries))
+            else -> row
+        } }
+        val files = regrouped.flatMap { row -> when (row) {
             is HomeRow.Recent -> row.entries.mapNotNull { (it as? ShelfEntry.File)?.item }
             is HomeRow.Chat -> row.entries.mapNotNull { (it as? ShelfEntry.File)?.item }
             is HomeRow.Continue -> row.records.map { it.toMediaItem() }
@@ -63,7 +75,7 @@ object HomeContent {
             }
             return folded.filter { entry -> take(when (entry) { is ShelfEntry.File -> entry.item; is ShelfEntry.Show -> entry.series.cover }) }
         }
-        return rows.mapNotNull { row -> when (row) {
+        return regrouped.mapNotNull { row -> when (row) {
             is HomeRow.Continue -> row.copy(records = row.records.filter { take(it.toMediaItem()) }, more = row.more.filter { eligible(it.toMediaItem()) }).takeIf { it.records.isNotEmpty() }
             is HomeRow.Recent -> row.copy(entries = entries(row.entries)).takeIf { !it.loaded || it.entries.isNotEmpty() }
             is HomeRow.Chat -> row.copy(entries = entries(row.entries), more = row.more.filter(::eligible)).takeIf { !it.loaded || it.entries.isNotEmpty() }

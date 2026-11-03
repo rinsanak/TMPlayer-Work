@@ -4,6 +4,24 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class HomeContentTest {
+    @Test fun `attached channel handles keep the title and fold its quality copies`() {
+        val one = video(11, "@CC_Quiet_Hills_2020_1080p.mkv")
+        val two = video(12, "Quiet.Hills.2020.720p.mkv")
+        assertEquals("Quiet Hills", TitleIdentity.parsed(one).title)
+        assertEquals("Quiet Hills", com.tmplayer.online.MetaQuery.of(one.fileName)?.title)
+        val rows = HomeContent.clean(listOf(HomeRow.Recent(listOf(ShelfEntry.File(one), ShelfEntry.File(two)), true)))
+        val entries = (rows.single() as HomeRow.Recent).entries
+        assertEquals(1, entries.size)
+        assertEquals(2, (entries.single() as ShelfEntry.File).item.versions.size)
+    }
+
+    @Test fun `cached groups are rebuilt without losing distinct original titles`() {
+        val one = video(11, "@CC_Quiet_Hills_2020_1080p.mkv")
+        val two = video(12, "@CC_Harbour_2022_720p.mkv")
+        val cached = one.copy(versions = listOf(one, two))
+        val rows = HomeContent.clean(listOf(HomeRow.Recent(listOf(ShelfEntry.File(cached)), true)))
+        assertEquals(2, (rows.single() as HomeRow.Recent).entries.size)
+    }
     private fun video(id: Long, title: String, duration: Int = 7200) = MediaItem(
         chatId = id, messageId = id, fileId = id.toInt(), title = title, fileName = title,
         sizeBytes = 900_000_000, durationSec = duration, mimeType = "video/mp4", thumbnailFileId = 0, miniThumbnail = null, date = id.toInt(),

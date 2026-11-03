@@ -55,7 +55,7 @@ data class MetaQuery(
         if (wantsEpisode) "${season ?: 1}x$episode" else "",
         if (anime) "anime" else "",
         tmdbId?.toString().orEmpty(),
-        if (language.startsWith("en")) language else "$language+en",
+        (if (language.startsWith("en")) language else "$language+en") + "+title2",
     ).joinToString("|")
 
     companion object {

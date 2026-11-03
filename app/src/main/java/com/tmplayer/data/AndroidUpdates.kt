@@ -54,7 +54,7 @@ suspend fun Updates.downloadAndInstall(context: Context, release: Release) {
     }
     // Android 12's session keeps the popup up, saying it is installing; before that the system
     // installer's screen takes over and the popup closes on Ready.
-    val session = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val session = !FormFactor.isTv(context) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val file = download(release, File(context.cacheDir, "updates"), installing = session) ?: return
     when (val result = SelfInstaller.install(context, file, release, foreground = true)) {
         // The process usually ends before this; if not, the restart notice still follows.

@@ -2,6 +2,7 @@ package com.tmplayer.ui.components
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -93,6 +94,8 @@ fun EdgeBackdrop(
                 // Until the sharp picture is in, the inline preview stands in its place, blurry but
                 // the same picture, rather than a cover of other colours flashing first.
                 val picture = step.picture ?: step.field
+                val tint = remember(picture) { picture?.let(::artworkTint) }
+                if (tint != null) Box(Modifier.fillMaxSize().background(tint))
                 // The size the picture is drawn at, in pixels: its own shape at the share of the
                 // width, no taller than the frame (cropped from its foot then), and a small one
                 // capped at a few times its own pixels.
@@ -336,3 +339,30 @@ private const val EDGE_SMALL_SCALE = 2f
 private val UPRIGHT_FIELD_BLUR = 48.dp
 private const val UPRIGHT_FIELD_ALPHA = 0.55f
 
+
+/** A small sample of the actual artwork, without stretching its logos across the page. */
+private fun artworkTint(picture: androidx.compose.ui.graphics.ImageBitmap): Color? = runCatching {
+    val pixel = IntArray(1)
+    var red = 0
+    var green = 0
+    var blue = 0
+    var count = 0
+    for (y in 1..3) for (x in 1..3) {
+        picture.readPixels(pixel, startX = (picture.width * x / 4).coerceAtMost(picture.width - 1), startY = (picture.height * y / 4).coerceAtMost(picture.height - 1), width = 1, height = 1, stride = 1)
+        val color = pixel[0]
+        if ((color ushr 24) < 128) continue
+        red += color shr 16 and 255
+        green += color shr 8 and 255
+        blue += color and 255
+        count++
+    }
+    if (count == 0) null else Color(red / count, green / count, blue / count).copy(alpha = 1f)
+}.getOrNull()
+
+/** Uses the same bounded artwork cache as the hero and samples only when its image changes. */
+@Composable
+fun rememberArtworkTint(source: BackdropSource): Color? {
+    val art = rememberBackdropArt(source, 320)
+    val picture = art?.picture ?: art?.field
+    return remember(picture) { picture?.let(::artworkTint) }
+}

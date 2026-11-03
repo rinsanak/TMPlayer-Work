@@ -257,6 +257,7 @@ internal fun HomePane(
     // Recently added is a row of its own as well, under Continue watching (user, 2026-10-23),
     // unless Settings turned the row off and kept the carousel it feeds. Its "no chosen chats"
     // line shows either way, so the carousel's empty place is explained.
+    var selectedArtwork by remember { mutableStateOf<MediaItem?>(null) }
     val listed = remember(rows) { rows.filter { it !is HomeRow.Recent || it.asRow || it.noneChosen } }
     val first = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
@@ -447,13 +448,15 @@ internal fun HomePane(
         val tileShared = com.tmplayer.ui.components.rememberTileShared()
         CompositionLocalProvider(
             LocalOnlineArt provides true,
+            LocalHomeArtworkSelection provides { selectedArtwork = it },
             com.tmplayer.ui.components.LocalTileShared provides tileShared,
-            androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides if (!touch) calm else platformSpec,
+            androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides if (!touch && !com.tmplayer.data.TgStreamUi.active) calm else platformSpec,
         ) {
           // While a See all page stands over Home, the remote cannot move into the rows under it.
           val pageOpen by androidx.compose.runtime.rememberUpdatedState(seeAllRow != null)
           // The last key pressed anywhere on Home, which stops the TV carousel turning once nobody is there.
           val homeIdle = remember { HomeIdle() }
+          HomeArtworkGround(selectedArtwork ?: featured?.firstOrNull()?.item, chatTitle)
           Column(
               Modifier
                   .fillMaxSize()
@@ -912,6 +915,28 @@ private fun ShelfRows(
     onOpenSeries: (Series) -> Unit,
 ) {
     val poster = remember(entries) { SeriesShelf.posterKeys(entries).isNotEmpty() }
+    if (com.tmplayer.data.TgStreamUi.active) {
+        val gap = if (touch) TILE_GAP_TOUCH else TILE_GAP_TV
+        BoxWithConstraints(modifier.fillMaxWidth().padding(start = start, end = end).focusRestorer()) {
+            val least = if (poster) posterWidth(touch) else wideWidth(touch)
+            val across = ((maxWidth + gap) / (least + gap)).toInt().coerceAtLeast(1)
+            val width = (maxWidth - gap * (across - 1)) / across
+            Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                entries.chunked(across).forEach { line ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        line.forEach { entry ->
+                            androidx.compose.runtime.key(entry.key) {
+                                val focus = if (isFirstRow && entry === entries.firstOrNull()) Modifier.focusRequester(first) else Modifier
+                                ShelfTile(entry, poster, watch, touch, chatTitle, onPlay, onHold, onOpenSeries, Modifier.width(width).then(focus))
+                            }
+                        }
+                    }
+                }
+                if (seeAll != null) SeeAllTile(seeAll.copy(width = width, poster = poster))
+            }
+        }
+        return
+    }
     TileRow(start, end, modifier, seeAll = seeAll?.copy(width = if (poster) posterWidth(touch) else wideWidth(touch), poster = poster)) {
         entries(entries, poster, watch, touch, if (isFirstRow) entries.firstOrNull() else null, first, chatTitle, onPlay, onHold, onOpenSeries)
     }
@@ -1074,6 +1099,10 @@ internal fun ShelfTile(
         val item = when (entry) { is ShelfEntry.File -> entry.item; is ShelfEntry.Show -> entry.series.cover }
         com.tmplayer.data.DiagnosticSession.event("HOME_CARD", "identityHash=${com.tmplayer.data.HomeContent.identity(item).hashCode()} titleHash=${com.tmplayer.data.TitleIdentity.name(item).hashCode()} year=${com.tmplayer.data.TitleIdentity.year(item)} fileId=${item.fileId} thumbnailId=${item.thumbnailFileId} durationSec=${item.durationSec} copies=${item.versions.size} rawName=${item.fileName} parsedTitle=${com.tmplayer.data.TitleIdentity.parsed(item).title}")
     }
+    val selectArtwork = LocalHomeArtworkSelection.current
+    val focusedModifier = modifier.onFocusChanged { state ->
+        if (state.hasFocus) selectArtwork(when (entry) { is ShelfEntry.File -> entry.item; is ShelfEntry.Show -> entry.series.cover })
+    }
     when (entry) {
         is ShelfEntry.File -> MediaCard(
             item = entry.item,
@@ -1085,7 +1114,7 @@ internal fun ShelfTile(
             poster = poster,
             artworkOnly = true,
             // Its first bytes asked for while the card is in focus or under the finger.
-            modifier = modifier,
+            modifier = focusedModifier,
         )
         is ShelfEntry.Show -> {
             val progress = remember(entry.series, watch) { watch.progress(entry.series) }
@@ -1101,7 +1130,7 @@ internal fun ShelfTile(
                 dense = touch,
                 poster = poster,
             artworkOnly = true,
-                modifier = modifier.warmUpOnIntent(next),
+                modifier = focusedModifier.warmUpOnIntent(next),
             )
         }
     }
@@ -1574,6 +1603,5 @@ internal fun PhoneHomeBrand(modifier: Modifier, onArt: Boolean) {
         layout = com.tmplayer.ui.components.BrandLayout.Row,
         color = if (onArt) Tone.onArt else Tone.text,
     )
-    com.tmplayer.ui.settings.DiagnosticControls()
     }
 }

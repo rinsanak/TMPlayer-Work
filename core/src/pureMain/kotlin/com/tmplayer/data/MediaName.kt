@@ -580,7 +580,10 @@ object MediaName {
     private fun handleOf(match: String, before: String, after: String): String {
         val words = match.removePrefix("@").split('_').filter { it.isNotEmpty() }
         val runsOn = words.drop(1).any { BARE_YEAR.matches(it) || TAGS.matches(it) }
-        if (runsOn) return if (words.size > 2) " " + words.drop(2).joinToString(" ") else " "
+        if (runsOn) {
+            val channelWords = if (words.getOrNull(1)?.lowercase() in CHANNEL_WORDS) 2 else 1
+            return " " + words.drop(channelWords).joinToString(" ") + " "
+        }
         if (words.size < 2) return " "
         val opensName = before.all { it.isWhitespace() || it in TRIM_CHARS }
         if (!opensName || !(after.isBlank() || startsWithMarker(after))) return " "
@@ -782,7 +785,7 @@ object MediaName {
      */
     private val CHANNEL_WORDS = setOf(
         "all", "mal", "tam", "tel", "hin", "eng", "new", "movies", "movie", "hd", "hevc", "mob", "files", "hub",
-        "club", "official", "world", "company", "cinema", "tv", "tg", "dub", "dubbed",
+        "club", "official", "world", "company", "cinema", "tv", "tg", "dub", "dubbed", "linkzz", "links",
     )
 
     /**
