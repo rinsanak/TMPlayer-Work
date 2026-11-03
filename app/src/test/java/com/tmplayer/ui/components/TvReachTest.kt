@@ -50,13 +50,14 @@ import org.robolectric.annotation.Config
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w960dp-h540dp-land-television-night-xhdpi", application = android.app.Application::class)
+@org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
 abstract class TvReachFixture {
 
     private var controller: org.robolectric.android.controller.ActivityController<ComponentActivity>? = null
 
     private val previousSink = com.tmplayer.platform.Logger.sink
     protected val focusEvents = mutableListOf<String>()
-    protected val focusBounds = linkedMapOf<String, String>()
+    protected val focusBounds = linkedMapOf<String, androidx.compose.ui.geometry.Rect>()
 
     @org.junit.Before
     fun collectFocusTrace() {
@@ -85,7 +86,7 @@ abstract class TvReachFixture {
     protected var cardShown by mutableStateOf(false)
     protected val tile = List(3) { FocusRequester() }
 
-    protected fun Modifier.named(name: String) = onGloballyPositioned { focusBounds[name] = it.boundsInRoot().toString() }.onFocusChanged { if (it.isFocused) focused = name else if (focused == name) focused = null }
+    protected fun Modifier.named(name: String) = onGloballyPositioned { focusBounds[name] = it.boundsInRoot() }.onFocusChanged { if (it.isFocused) focused = name else if (focused == name) focused = null }
 
     protected fun compose(glass: Boolean = false, rtl: Boolean = false) {
         kotlinx.coroutines.runBlocking {
@@ -169,7 +170,29 @@ abstract class TvReachFixture {
         idle()
     }
 
-    protected fun idle() = repeat(10) { shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(50)) }
+    protected fun idle() {
+        androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
+        repeat(10) {
+            shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(50))
+            Thread.sleep(5)
+        }
+        // Glass inserts its backdrop after the settings read. Pump an actual native layout/draw
+        // before sending arrows: a focus target can exist before its bounds are placed.
+        val root = activity.window.decorView
+        val width = root.width.takeIf { it > 0 } ?: activity.resources.displayMetrics.widthPixels
+        val height = root.height.takeIf { it > 0 } ?: activity.resources.displayMetrics.heightPixels
+        fun force(view: android.view.View) {
+            view.forceLayout()
+            if (view is android.view.ViewGroup) for (index in 0 until view.childCount) force(view.getChildAt(index))
+        }
+        force(root)
+        root.measure(android.view.View.MeasureSpec.makeMeasureSpec(width, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(height, android.view.View.MeasureSpec.EXACTLY))
+        root.layout(0, 0, width, height)
+        val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+        try { root.draw(android.graphics.Canvas(bitmap)) } finally { bitmap.recycle() }
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(50))
+    }
 }
 
 // One focus scenario per native worker; retain every navigation assertion.
@@ -250,6 +273,9 @@ class TvReachCardTest : TvReachFixture() {
 
         cardShown = true
         idle()
+        assertTrue("Card buttons must have layout bounds: " + focusTrace(), listOf("change", "keep").all { name ->
+            focusBounds[name]?.let { it.width > 0 && it.height > 0 } == true
+        })
         assertEquals("keep", focused)
         // The arrows stay inside the card: Up does not reach the page behind it.
         key(KeyEvent.KEYCODE_DPAD_UP)
@@ -280,6 +306,9 @@ class TvReachGlassCardTest : TvReachFixture() {
 
         cardShown = true
         idle()
+        assertTrue("Card buttons must have layout bounds: " + focusTrace(), listOf("change", "keep").all { name ->
+            focusBounds[name]?.let { it.width > 0 && it.height > 0 } == true
+        })
         assertEquals("keep", focused)
         // The arrows stay inside the card: Up does not reach the page behind it.
         key(KeyEvent.KEYCODE_DPAD_UP)
@@ -310,6 +339,9 @@ class TvReachGlassRtlCardTest : TvReachFixture() {
 
         cardShown = true
         idle()
+        assertTrue("Card buttons must have layout bounds: " + focusTrace(), listOf("change", "keep").all { name ->
+            focusBounds[name]?.let { it.width > 0 && it.height > 0 } == true
+        })
         assertEquals("keep", focused)
         // The arrows stay inside the card: Up does not reach the page behind it.
         key(KeyEvent.KEYCODE_DPAD_UP)
