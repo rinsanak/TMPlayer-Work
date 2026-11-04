@@ -2215,6 +2215,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         val corner = findViewById<View>(R.id.top_right_stack)
         val root = findViewById<View>(R.id.player_root)
         val topBar = findViewById<View>(R.id.controls_topbar)
+        val phone = !FormFactor.isTv(this)
         val baseLeft = cluster.paddingLeft
         val baseRight = cluster.paddingRight
         val baseBottom = cluster.paddingBottom
