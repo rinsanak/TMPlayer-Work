@@ -64,7 +64,9 @@ class HomeRowsTest {
             }
             val rows = HomeRows.build(emptyList(), listOf(chat(1)), mapOf(1L to videos), videos, recentMinStarred = 1)
             assertEquals(videos.sortedByDescending { it.date }.take(20).map { it.messageId }, ids(rows.filterIsInstance<HomeRow.Recent>().single()))
-            assertEquals(HomeRows.LIMIT, rows.filterIsInstance<HomeRow.Chat>().single().entries.size)
+            val chatOnly = HomeRows.build(emptyList(), listOf(chat(1)), mapOf(1L to videos), videos,
+                recentMinStarred = 1, layout = HomeLayout(carousel = false, recentlyAdded = false))
+            assertEquals(HomeRows.LIMIT, chatOnly.filterIsInstance<HomeRow.Chat>().single().entries.size)
         } finally {
             TgStreamUi.active = before
         }
