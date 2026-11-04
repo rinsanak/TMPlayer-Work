@@ -1527,7 +1527,6 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             onPickSpeed = ::pickSpeed,
             onCycleOrientation = ::cycleOrientation,
             onPlayEpisode = ::playEpisode,
-            onCopies = ::openCopies,
             // The row's picture shape button: the next shape along, as W does on the desktop.
             onCycleShape = { applyScale(videoScale.next()) },
             onLock = ::lockScreen,
@@ -2508,16 +2507,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         // The same file posted twice is one copy to switch to, not two.
         val all = com.tmplayer.data.VideoCopies.oneOfEachFile((list + here).distinctBy { it.id }, here.id)
         copies = all
-        // The listed copy carries Telegram's picture size, which the start arguments do not.
-        val playing = all.firstOrNull { it.id == here.id } ?: here
-        val qualities = telegramQualities()
-        controls?.setCopy(
-            when {
-                playingQuality != 0 -> com.tmplayer.data.TelegramQualities.label(playingQuality)
-                all.size > 1 || qualities.isNotEmpty() -> playing.copyQuality() ?: postItem?.copyQuality() ?: L.detailUploadQuality
-                else -> null
-            },
-        )
+
     }
 
     /** The chat a copy is in, by name, for the copies list and for the player it opens. */
@@ -4073,7 +4063,6 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         videoWidth = 0
         videoHeight = 0
         copies = emptyList()
-        controls?.setCopy(null)
         bookmarkList.value = emptyList()
         _episodes.value = EpisodeSteps()
         sessionArtwork = null

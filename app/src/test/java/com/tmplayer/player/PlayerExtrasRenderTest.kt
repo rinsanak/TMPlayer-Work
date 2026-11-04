@@ -367,7 +367,6 @@ abstract class PlayerExtrasRenderFixture {
                     title = "Night Train S01E05.mkv", sizeBytes = 900_000_000, durationSec = 2400,
                     mimeType = "video/mp4", thumbnailFileId = 0, miniThumbnail = null, date = 0)
                 it.setEpisodes(episode.copy(messageId = 0), episode, "Previous S01E03", "Next S01E05")
-                it.setCopy("1080p")
                 it.setShape(shape)
                 it.show()
             }
@@ -380,7 +379,11 @@ abstract class PlayerExtrasRenderFixture {
         val bar = bounds(R.id.controls_timebar)
         val transport = bounds(R.id.controls_center)
         assertTrue("transport above seek bar", transport.bottom < bar.top)
-        assertTrue("transport at top right", transport.right >= bounds(R.id.controls_topbar).right - 16 * activity.resources.displayMetrics.density)
+        val more = bounds(R.id.control_more)
+        val actions = bounds(R.id.controls_buttons)
+        assertTrue("transport sits left of More", transport.right <= more.left)
+        assertTrue("actions precede transport", actions.right <= transport.left)
+        assertTrue("transport and More share a row", kotlin.math.abs(transport.centerY() - more.centerY()) <= 4 * activity.resources.displayMetrics.density)
         assertTrue("elapsed time below seek bar", bounds(R.id.times_position).top >= bar.bottom)
         assertTrue("duration below seek bar", bounds(R.id.times_duration).top >= bar.bottom)
         for (id in listOf(R.id.control_subtitles, R.id.control_audio, R.id.control_speed)) {
@@ -395,6 +398,9 @@ abstract class PlayerExtrasRenderFixture {
             assertEquals(R.id.controls_timebar, play.nextFocusDownId)
             assertEquals(R.id.center_play_pause, activity.findViewById<View>(R.id.controls_timebar).nextFocusUpId)
         }
+        requireNotNull(controls).setEpisodes(null, null, "Previous", "Next")
+        assertTrue("Next remains visible when no later episode exists", activity.findViewById<View>(R.id.center_next).isShown)
+        assertTrue("Unavailable Next cannot launch a wrong episode", !activity.findViewById<View>(R.id.center_next).isEnabled)
         return requireNotNull(controls)
     }
 

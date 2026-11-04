@@ -293,6 +293,7 @@ internal fun BrowseScreen(
     /** Recently added reads on through Home's chats as it is scrolled to its end. */
     homeFeedOf: (HomeRow) -> com.tmplayer.ui.browse.RowFeed? = { null },
     onHomeLaterArtWanted: (WatchLaterRecord) -> Unit = {},
+    onHomeLastArtWanted: (ResumeRecord) -> Unit = {},
     /** Plays a video from one of Home's rows; the second argument is its chat's name. */
     onPlayMedia: (MediaItem, String) -> Unit = { _, _ -> },
     onRefreshHome: () -> Unit = {},
@@ -653,6 +654,9 @@ internal fun BrowseScreen(
                         Box(Modifier.fillMaxSize()) {
                             HomePane(
                                 rows = homeRows,
+                                lastPlayed = com.tmplayer.data.HomeResume.latest(continueWatching),
+                                onContinue = onResumeMedia,
+                                onLastArtWanted = onHomeLastArtWanted,
                                 rowsReady = homeRowsReady,
                                 carouselOn = homeLayout.carousel,
                                 allOff = homeLayout.allOff,

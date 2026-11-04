@@ -72,7 +72,6 @@ class PlayerControls(
     private val onRemainingToggled: (Boolean) -> Unit = {},
     /** The row's Episodes button: opens the episode list. */
     /** The row's copy button: opens the list of this video's copies. */
-    private val onCopies: () -> Unit = {},
     /** The row's picture shape button: the next of Fit, Crop and Stretch. */
     private val onCycleShape: () -> Unit = {},
     /** The phone row's lock, shown while the row has room for it. */
@@ -114,7 +113,6 @@ class PlayerControls(
 
     /** The row's buttons, without the bar and the readout. */
     private val buttons: View = root.findViewById(R.id.controls_buttons)
-    private val copyButton: TextView = root.findViewById(R.id.control_copy)
 
     /** The phone's times line shows what is left rather than the total. */
     var showRemaining = false
@@ -263,7 +261,6 @@ class PlayerControls(
             holdFocus(shapeButton)
         }
         wire(lockButton) { onLock() }
-        wire(copyButton) { onCopies() }
         rotate.visibility = if (isTv) View.GONE else View.VISIBLE
         // The scrims on five stops, which their XML stand-ins cannot hold without a seam.
         root.findViewById<View>(R.id.controls_scrim_top).background = ControlsScrim.top()
@@ -740,7 +737,6 @@ class PlayerControls(
             R.id.control_rotate to L.playerScreenOrientation,
             R.id.control_lock to L.playerLockScreen,
             R.id.control_tv_more to L.commonMore,
-            R.id.control_copy to L.playerCopies,
         )
         for ((id, name) in names) root.findViewById<View>(id)?.contentDescription = name
     }
@@ -813,34 +809,18 @@ class PlayerControls(
     ) {
         // Invisible rather than gone keeps the play disc dead centre whether or not there are
         // neighbours.
-        centerPrevious.visibility = if (previousEpisode != null) View.VISIBLE else View.INVISIBLE
+        centerPrevious.visibility = View.VISIBLE
+        centerPrevious.isEnabled = previousEpisode != null
+        centerPrevious.alpha = if (previousEpisode != null) 1f else 0.45f
         describe(centerPrevious, previousLabel)
         centerPrevious.setOnClickListener { previousEpisode?.let(onPlayEpisode) }
         centerPreviousCaption.visibility = View.GONE
-        centerNext.visibility = if (nextEpisode != null) View.VISIBLE else View.INVISIBLE
-        describe(centerNext, nextLabel)
+        centerNext.visibility = View.VISIBLE
+        centerNext.isEnabled = nextEpisode != null
+        centerNext.alpha = if (nextEpisode != null) 1f else 0.45f
+        describe(centerNext, if (nextEpisode == null) L.playerNextUnavailable else nextLabel)
         centerNext.setOnClickListener { nextEpisode?.let(onPlayEpisode) }
         centerNextCaption.visibility = View.GONE
-    }
-
-    /**
-     * Names the copy playing on the copy button ("1080p"), or takes the button away with null: a
-     * video with no other copy has nothing to switch to.
-     */
-    fun setCopy(label: String?) {
-        val wanted = if (label.isNullOrBlank()) View.GONE else View.VISIBLE
-        copyButton.text = label.orEmpty()
-        if (copyButton.visibility == wanted) return
-        val hadFocus = copyButton.hasFocus()
-        copyButton.visibility = wanted
-        if (hadFocus) focusRow()
-    }
-
-    /** Puts the remote back on the copy button, for when the list it opened closes. */
-    fun focusCopy() {
-        if (!isTv || !visible || copyButton.visibility != View.VISIBLE) return
-        copyButton.requestFocus()
-        poke()
     }
 
     /** Puts the remote back on the Episodes button, for when the list it opened closes. */

@@ -127,6 +127,9 @@ import androidx.compose.ui.draw.drawBehind
 @Composable
 internal fun HomePane(
     rows: List<HomeRow>,
+    lastPlayed: ResumeRecord? = null,
+    onContinue: (ResumeRecord) -> Unit = {},
+    onLastArtWanted: (ResumeRecord) -> Unit = {},
     watch: SeriesWatch,
     /** Continue watching videos as Telegram describes them, for their pictures. */
     art: Map<String, MediaItem>,
@@ -189,7 +192,7 @@ internal fun HomePane(
     val touch = isTouch()
     // On a phone the page runs up under the status bar (see LocalUnderStatusBar).
     val under = if (touch) LocalUnderStatusBar.current else 0.dp
-    if (rows.isEmpty() && allOff) {
+    if (rows.isEmpty() && allOff && lastPlayed == null) {
         LaunchedEffect(Unit) { HomeFirstPaint.markReady() }
         val focus = remember { FocusRequester() }
         Column(Modifier.fillMaxSize().padding(top = under)) {
@@ -209,7 +212,7 @@ internal fun HomePane(
         if (!touch) LaunchedEffect(Unit) { if (mayTakeFocus()) runCatching { focus.requestFocus() } }
         return
     }
-    if (rows.isEmpty()) {
+    if (rows.isEmpty() && lastPlayed == null) {
         LaunchedEffect(Unit) { HomeFirstPaint.markReady() }
         // Rows still being built: the page's heading over a blank page, not the first run's card.
         // A list of the chats' videos that never comes back gives way to the card after a while,
@@ -240,8 +243,15 @@ internal fun HomePane(
     // complete page, a moment after the row is in at most ([HomeFeatured.FILL_WAIT_MS]).
     val recent = rows.firstNotNullOfOrNull { it as? HomeRow.Recent }
     // Off in Settings, nothing is picked or turned over for it either.
-    val featured = rememberFeatured(recent.takeIf { carouselOn })
-    val carousel = carouselOn && recent != null && featured?.isEmpty() != true
+    LaunchedEffect(lastPlayed?.chatId, lastPlayed?.messageId) {
+        lastPlayed?.let { onLastArtWanted(it); HomeFirstPaint.markReady() }
+    }
+    val lastItem = lastPlayed?.let { record -> art[SettingsStore.progressKey(record.chatId, record.messageId)] ?: record.toMediaItem() }
+    val regularFeatured = rememberFeatured(recent.takeIf { carouselOn && lastPlayed == null })
+    val featured = remember(lastItem, regularFeatured) {
+        if (lastItem != null) listOf(com.tmplayer.data.FeaturedPick(ShelfEntry.File(lastItem))) else regularFeatured
+    }
+    val carousel = lastPlayed != null || (carouselOn && recent != null && featured?.isEmpty() != true)
     // With no carousel the rows are the whole first screen; with one, its first picture tells
     // HomeFirstPaint (through the carousel), so the loader lifts over a finished Home.
     // Not at once: the starred chats' row can arrive a moment after the rest, bringing the carousel
@@ -524,7 +534,8 @@ internal fun HomePane(
                             watch = watch,
                             chatTitle = chatTitle,
                             active = active,
-                            onPlay = onPlayNow,
+                            onPlay = { item, chat -> if (lastPlayed != null) onContinue(lastPlayed) else onPlayNow(item, chat) },
+                            playLabelOverride = if (lastPlayed != null) s.homeLastContinue else null,
                             onDetails = { pick ->
                                 val series = pick.series
                                 if (series != null) opened.open(series) else onDetails(pick.item, chatTitle(pick.item.chatId))
@@ -557,7 +568,8 @@ internal fun HomePane(
                             watch = watch,
                             chatTitle = chatTitle,
                             active = active,
-                            onPlay = onPlayNow,
+                            onPlay = { item, chat -> if (lastPlayed != null) onContinue(lastPlayed) else onPlayNow(item, chat) },
+                            playLabelOverride = if (lastPlayed != null) s.homeLastContinue else null,
                             onDetails = { pick ->
                                 val series = pick.series
                                 if (series != null) opened.open(series) else onHoldMedia(pick.item, chatTitle(pick.item.chatId))

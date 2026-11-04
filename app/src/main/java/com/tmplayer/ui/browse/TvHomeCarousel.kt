@@ -116,6 +116,7 @@ internal fun TvFeaturedCarousel(
     onPlay: (MediaItem, String) -> Unit,
     onDetails: (FeaturedPick) -> Unit,
     modifier: Modifier = Modifier,
+    playLabelOverride: String? = null,
     /** The page's heading, standing on the picture's top; null leaves it to the page. */
     header: (@Composable () -> Unit)? = null,
     /** On Play, for Down from the TV top bar. */
@@ -194,7 +195,7 @@ internal fun TvFeaturedCarousel(
         val showProgress = remember(series, watch) { series?.let { watch.progress(it) } }
         val episode = series?.let { showProgress?.next ?: it.episodes.firstOrNull() }
         val playItem = if (series != null && episode != null && showProgress != null) watch.pick(episode, showProgress) else pick.item
-        val playLabel = if (series != null && episode != null && showProgress != null) {
+        val playLabel = playLabelOverride ?: if (series != null && episode != null && showProgress != null) {
             seriesPlayLabel(episode.code, watch.pointOf(episode), showProgress.watched > 0)
         } else if (pick.loneEpisodeCode != null) {
             // A lone episode on its show's page: Resume or Play names the episode, as a show's page does.

@@ -123,6 +123,7 @@ internal fun FeaturedCarousel(
     onPlay: (MediaItem, String) -> Unit,
     onDetails: (FeaturedPick) -> Unit,
     modifier: Modifier = Modifier,
+    playLabelOverride: String? = null,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth().height(height)) {
         // The same test as the picture's own ([EdgeBackdrop]), so the words move to the start
@@ -215,6 +216,7 @@ internal fun FeaturedCarousel(
                     FeaturedControls(
                         pick, watch, chatTitle, onPlay, onDetails,
                         wide = true,
+                        playLabelOverride = playLabelOverride,
                         modifier = Modifier.align(Alignment.BottomStart).padding(start = start + HERO_START_EXTRA, bottom = WIDE_FOOT),
                     )
                 }
@@ -233,7 +235,7 @@ internal fun FeaturedCarousel(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     latest.getOrNull(pager.currentPage)?.let { pick ->
-                        FeaturedControls(pick, watch, chatTitle, onPlay, onDetails)
+                        FeaturedControls(pick, watch, chatTitle, onPlay, onDetails, playLabelOverride = playLabelOverride)
                     }
                     // Which page is up, under Play: a swipe turns the pages, so the dots are a mark only.
                     CarouselDots(count = count, current = pager.currentPage)
@@ -370,6 +372,7 @@ private fun FeaturedControls(
     onDetails: (FeaturedPick) -> Unit,
     wide: Boolean = false,
     modifier: Modifier = Modifier,
+    playLabelOverride: String? = null,
 ) {
     val s = LocalStrings.current
     val item = pick.item
@@ -380,7 +383,7 @@ private fun FeaturedControls(
     val showProgress = remember(series, watch) { series?.let { watch.progress(it) } }
     val episode = series?.let { showProgress?.next ?: it.episodes.firstOrNull() }
     val playItem = if (series != null && episode != null && showProgress != null) watch.pick(episode, showProgress) else item
-    val playLabel = if (series != null && episode != null && showProgress != null) {
+    val playLabel = playLabelOverride ?: if (series != null && episode != null && showProgress != null) {
         seriesPlayLabel(episode.code, watch.pointOf(episode), showProgress.watched > 0)
     } else if (pick.loneEpisodeCode != null) {
         // A lone episode on its show's page: Resume or Play names the episode, as a show's page does.

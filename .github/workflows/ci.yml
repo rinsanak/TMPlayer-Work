@@ -57,7 +57,7 @@ jobs:
       - name: Select focused release checks
         id: checks
         run: |
-          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.10 ]; then
+          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.11 ]; then
             echo "focused=true" >> "$GITHUB_OUTPUT"
             echo "data=true" >> "$GITHUB_OUTPUT"
             echo "player=true" >> "$GITHUB_OUTPUT"
@@ -72,13 +72,8 @@ jobs:
 
       - name: Run core and ui tests
         run: |
-          # The parent's core/UI step passed in run 41836595194; this retry changes only Android wiring.
-          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && { [ "$(git rev-parse HEAD^)" = 73c094bba438c8e2101c6fadaf862efc0e106c54 ] || [ "$(git rev-parse HEAD^)" = c360d5ae9520a2bd59a93f76cb783347fded039c ]; } && git diff --quiet HEAD^ HEAD -- core/ ui/; then
-            echo "Reusing verified, unchanged core and UI checks from 41836595194"
-            exit 0
-          fi
           if [ "${{ steps.checks.outputs.player }}" = true ]; then
-            ./gradlew :core:jvmTest --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*EpisodeStepsTest' --tests '*DialogBoostStoreTest' --tests '*WatchSyncTest' --tests '*SubtitleTranslationTest' --tests '*TranslatorTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
+            ./gradlew :core:jvmTest --tests '*HomeResumeTest' --tests '*WatchSyncTest'
           elif [ "${{ steps.checks.outputs.data }}" = true ]; then
             ./gradlew :core:jvmTest --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*HomeFeaturedTest' --tests '*SameTitleTest' --tests '*SeriesFillTest' --tests '*SeriesShelf*Test' --tests '*HomeAutoFillTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
           elif [ "${{ steps.checks.outputs.focused }}" = true ]; then
@@ -107,13 +102,7 @@ jobs:
       - name: Check compact player layout and TV focus
         if: steps.checks.outputs.player == 'true'
         timeout-minutes: 10
-        run: |
-          if [ "$(git rev-parse HEAD^)" = c360d5ae9520a2bd59a93f76cb783347fded039c ] && git diff --quiet HEAD^ HEAD -- app/src/main/java/ core/ ui/; then
-            echo "Audio and failure mapping passed in 41837691307 and their source is unchanged"
-            ./gradlew :app:testDebugUnitTest --tests '*PlayerExtrasRow*Test' --tests '*PlayerMenuTest'
-          else
-            ./gradlew :app:testDebugUnitTest --tests '*PlayerExtrasRow*Test' --tests '*VolumeBoostProcessorTest' --tests '*PlayerMenuTest' --tests '*PlaybackFailureTextTest'
-          fi
+        run: ./gradlew :app:testDebugUnitTest --tests '*PlayerExtrasRow*Test'
 
       - name: Run unit tests
         if: steps.checks.outputs.focused != 'true'

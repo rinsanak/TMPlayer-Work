@@ -12,6 +12,23 @@ class WatchSyncTest {
         override suspend fun read() = frame
         override suspend fun write(frame: WatchSync.Frame) { this.frame = WatchSync.decode(WatchSync.encode(frame)) }
     }
+    @Test fun `short numeric aliases retain distinct full session identity and legacy compatibility`() = runTest {
+        repeat(20) { val code = WatchSync.newCode(); assertEquals(4, code.length); assertTrue(WatchSync.validCode(code)) }
+        assertFalse(WatchSync.validCode("12"))
+        val legacy = WatchSync.Frame(room, media, "a", 20, false, 1_000_000, "revision", 100_000)
+        assertEquals(legacy, WatchSync.decode(WatchSync.encode(legacy)))
+        val numeric = legacy.copy(code = "1234")
+        assertEquals(numeric, WatchSync.decode(WatchSync.encode(numeric)))
+        assertTrue(WatchSync.active(numeric, 1_000_000))
+        assertFalse(WatchSync.active(numeric, 1_121_000))
+        val relay = Relay()
+        val client = WatchSync.Client(room, media, relay, "device", code = "1234") { 1_000_000L }
+        client.publish(WatchSync.Snapshot(20, false, 100_000))
+        assertEquals("1234", relay.frame?.code)
+        relay.frame = relay.frame?.copy(room = "2".repeat(32))
+        assertEquals("watch_mismatch", runCatching { client.poll(WatchSync.Snapshot(20, false, 100_000)) }.exceptionOrNull()?.message)
+    }
+
     @Test fun `two independent clients sync play pause seek and correct reconnect drift`() = runTest {
         var time = 1_000_000L
         val relay = Relay()

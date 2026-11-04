@@ -2014,6 +2014,7 @@ private fun Root() {
                     onMoreChats = chatsViewModel::loadMoreChats,
                     onRetryFolders = chatsViewModel::retryFolders,
                     onHomeLaterArtWanted = homeViewModel::requestArt,
+                    onHomeLastArtWanted = homeViewModel::requestArt,
                     onPlayMedia = { item, chatTitle -> play(item, chatTitle = chatTitle) },
                     homeRefreshing = homeViewModel.refreshing.collectAsStateWithLifecycle().value,
                     // Home's own rows alone (HX44): the chat list no longer needs a manual sync

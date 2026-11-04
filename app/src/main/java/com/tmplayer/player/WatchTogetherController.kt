@@ -40,9 +40,9 @@ class WatchTogetherController(private val activity: FragmentActivity, private va
         AlertDialog.Builder(activity).setTitle(L.playerWatchTogether).setMessage(text("watch_explanation"))
             .setPositiveButton(if (client == null) choices[0] else choices[1]) { _, _ -> if (client == null) start(null) else leave() }
             .setNeutralButton(if (client == null) choices[1] else choices[0]) { _, _ ->
-                if (client != null) showCode(client?.room.orEmpty())
+                if (client != null) showCode(client?.let { it.code ?: it.room }.orEmpty())
                 else {
-                    val input = EditText(activity).apply { hint = text("watch_code"); setSingleLine() }
+                    val input = EditText(activity).apply { hint = text("watch_code"); setSingleLine(); setRawInputType(android.text.InputType.TYPE_CLASS_NUMBER) }
                     AlertDialog.Builder(activity).setTitle(text("watch_join")).setView(input)
                         .setPositiveButton(text("watch_join")) { _, _ -> start(input.text.toString().trim().lowercase()) }
                         .setNegativeButton(L.commonCancel, null).show()
@@ -56,22 +56,35 @@ class WatchTogetherController(private val activity: FragmentActivity, private va
             }.setNegativeButton(L.commonClose, null).show()
     }
     private fun start(join: String?) {
-        if (join != null && !join.matches(Regex("[a-f0-9]{32}"))) { say(text("watch_unavailable")); return }
+        if (join != null && !WatchSync.validRoom(join) && !WatchSync.validCode(join)) { say(text("watch_unavailable")); return }
         val initial = snapshot() ?: return
         val mediaKey = identity()
-        val room = join ?: UUID.randomUUID().toString().replace("-", "")
+        var code = join ?: WatchSync.newCode()
+        val room = UUID.randomUUID().toString().replace("-", "")
         val actor = UUID.randomUUID().toString()
         say(text("watch_connecting"))
         job = activity.lifecycleScope.launch {
             try {
-                val opened = WatchRelay.connect(room, if (join == null) WatchSync.Frame(room, mediaKey, actor,
-                    initial.position, initial.playing, System.currentTimeMillis(), UUID.randomUUID().toString(), initial.duration) else null)
+                val opened = if (join != null) WatchRelay.connect(code) else {
+                    var created: WatchRelay? = null
+                    repeat(5) {
+                        if (created == null) try {
+                            created = WatchRelay.connect(code, WatchSync.Frame(room, mediaKey, actor,
+                                initial.position, initial.playing, System.currentTimeMillis(), UUID.randomUUID().toString(), initial.duration, code))
+                        } catch (e: IllegalStateException) {
+                            if (e.message != "watch_code_in_use") throw e
+                            code = WatchSync.newCode()
+                        }
+                    }
+                    created ?: throw IllegalStateException("watch_unavailable")
+                }
                 relay = opened
-                check(opened.read()?.media == mediaKey) { "watch_mismatch" }
+                val source = opened.read() ?: throw IllegalStateException("watch_unavailable")
+                check(source.media == mediaKey) { "watch_mismatch" }
                 if (identity() != mediaKey) throw IllegalStateException("watch_mismatch")
-                val connected = WatchSync.Client(room, mediaKey, opened, actor)
+                val connected = WatchSync.Client(source.room, mediaKey, opened, actor, source.code)
                 client = connected
-                if (join == null) { connected.publish(initial); showCode(room) }
+                if (join == null) { connected.publish(initial); showCode(source.code ?: source.room) }
                 say(text("watch_connected"))
                 var heartbeat = SystemClock.elapsedRealtime()
                 while (true) {
