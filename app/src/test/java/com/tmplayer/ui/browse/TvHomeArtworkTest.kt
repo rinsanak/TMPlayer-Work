@@ -52,6 +52,7 @@ class TvHomeArtworkTest {
     @Test fun `small online poster survives and TV ground has no solid colour panel`() {
         FormFactor.override(true)
         Motion.reduced = true
+        Motion.television = true
         val poster = File.createTempFile("tv-home-poster", ".png")
         val image = Bitmap.createBitmap(300, 450, Bitmap.Config.ARGB_8888)
         image.eraseColor(Color.GREEN)
@@ -83,6 +84,7 @@ class TvHomeArtworkTest {
             poster.delete()
             FormFactor.override(false)
             Motion.reduced = false
+            Motion.television = false
         }
     }
 }
