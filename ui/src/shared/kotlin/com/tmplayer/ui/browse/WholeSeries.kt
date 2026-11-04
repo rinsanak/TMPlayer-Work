@@ -87,6 +87,7 @@ object WholeSeries {
             }
         }
         kept[keyOf(series)] = whole
+        com.tmplayer.online.KnownMedia.note(whole.episodes.flatMap { it.copies })
         return whole
     }
 

@@ -56,6 +56,13 @@ class VolumeBoostProcessor : BaseAudioProcessor() {
     @Volatile
     var level: Boolean = true
 
+    @Volatile var dialogue: Boolean = false
+    private var dialogueMix = 0f
+    private var speechLow = FloatArray(0)
+    private var speechHigh = FloatArray(0)
+    private var lowStep = 0f
+    private var highStep = 0f
+
     /** The track's average level as the leveller hears it: a mean square, before any gain. */
     private var loudness = LEVEL_TARGET_SQUARE
 
@@ -108,6 +115,10 @@ class VolumeBoostProcessor : BaseAudioProcessor() {
         levelRise = coefficient(LEVEL_RISE_SECONDS, rate)
         levelFall = coefficient(LEVEL_FALL_SECONDS, rate)
         frame = FloatArray(inputAudioFormat.channelCount)
+        speechLow = FloatArray(frame.size)
+        speechHigh = FloatArray(frame.size)
+        lowStep = 1f - kotlin.math.exp(-2f * Math.PI.toFloat() * 250f / rate)
+        highStep = 1f - kotlin.math.exp(-2f * Math.PI.toFloat() * 3500f / rate)
         levelCountdown = 0
         return inputAudioFormat
     }
@@ -118,11 +129,12 @@ class VolumeBoostProcessor : BaseAudioProcessor() {
         val out = replaceOutputBuffer(remaining)
         val night = night
         val level = level
+        val dialogue = dialogue
         // The leveller's lift eases back to 1 when Even out volume is turned off, but in floats it
         // stalls a hair above (about 1.001), and the copy below never ran again: every sample went
         // through the full chain for the rest of the video for a lift nobody can hear.
         if (!level && abs(levelGain - 1f) < LEVEL_SNAP) levelGain = 1f
-        if (!enabled && !night && !level && gain == 1f && levelGain == 1f) {
+        if (!dialogue && dialogueMix == 0f && !enabled && !night && !level && gain == 1f && levelGain == 1f) {
             envelope = 0f
             out.put(inputBuffer).flip()
             return
@@ -143,19 +155,24 @@ class VolumeBoostProcessor : BaseAudioProcessor() {
         }
         // The views above read without moving the buffer: it is consumed here, as before.
         input.position(input.position() + frames * inputAudioFormat.bytesPerFrame)
-        val target = targetGain(enabled, night)
+        val target = targetGain(enabled, night) * if (dialogue) 2f else 1f
         // Even out volume alone keeps the track's own dynamics: only the very top of the range,
         // which its lift or a surround fold may push past full scale, is held back.
-        val levelOnly = !enabled && !night
-        val threshold = if (night) NIGHT_THRESHOLD else if (levelOnly) LEVEL_THRESHOLD else THRESHOLD
-        val ratio = if (night) NIGHT_RATIO else if (levelOnly) LEVEL_RATIO else RATIO
+        val levelOnly = !enabled && !night && !dialogue
+        val threshold = if (dialogue) 0.22f else if (night) NIGHT_THRESHOLD else if (levelOnly) LEVEL_THRESHOLD else THRESHOLD
+        val ratio = if (dialogue) 5f else if (night) NIGHT_RATIO else if (levelOnly) LEVEL_RATIO else RATIO
         var at = 0
         repeat(frames) {
             gain = if (gain < target) minOf(target, gain + rampStep) else maxOf(target, gain - rampStep)
+            dialogueMix = if (dialogue) minOf(1f, dialogueMix + rampStep) else maxOf(0f, dialogueMix - rampStep)
             var square = 0f
             var peak = 0f
             for (c in 0 until channels) {
-                val sample = buffer[at + c]
+                val original = buffer[at + c]
+                speechLow[c] += lowStep * (original - speechLow[c])
+                speechHigh[c] += highStep * (original - speechHigh[c])
+                val sample = original + dialogueMix * 0.75f * (speechHigh[c] - speechLow[c])
+                buffer[at + c] = sample
                 square += sample * sample
                 peak = maxOf(peak, abs(sample))
             }
@@ -205,6 +222,9 @@ class VolumeBoostProcessor : BaseAudioProcessor() {
 
     override fun onReset() {
         envelope = 0f
+        dialogueMix = 0f
+        speechLow.fill(0f)
+        speechHigh.fill(0f)
         gain = 1f
         // A new track is measured afresh. A seek (onFlush) keeps what was learnt of this one.
         loudness = LEVEL_TARGET_SQUARE
@@ -272,8 +292,8 @@ class VolumeBoostProcessor : BaseAudioProcessor() {
          */
         fun settledOutput(input: Float, boost: Boolean, night: Boolean): Float {
             val lifted = input * targetGain(boost, night)
-            val threshold = if (night) NIGHT_THRESHOLD else THRESHOLD
-            val ratio = if (night) NIGHT_RATIO else RATIO
+            val threshold = if (dialogue) 0.22f else if (night) NIGHT_THRESHOLD else THRESHOLD
+            val ratio = if (dialogue) 5f else if (night) NIGHT_RATIO else RATIO
             return (lifted * squeeze(lifted, threshold, ratio)).coerceAtMost(1f)
         }
 

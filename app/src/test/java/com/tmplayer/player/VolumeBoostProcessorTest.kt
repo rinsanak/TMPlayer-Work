@@ -11,6 +11,42 @@ import kotlin.math.abs
 
 class VolumeBoostProcessorTest {
 
+    @Test fun `dialogue mode lifts quiet speech band more than bass without clipping stereo PCM`() {
+        val stereo = AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT)
+        fun tone(hz: Int, amplitude: Float, dialogue: Boolean): List<Float> {
+            val processor = VolumeBoostProcessor().apply { configure(stereo); flush(); level = false; this.dialogue = dialogue }
+            val input = ByteBuffer.allocateDirect(48_000 * 4).order(ByteOrder.nativeOrder())
+            repeat(48_000) { n -> val v = (kotlin.math.sin(2 * Math.PI * hz * n / 48_000) * amplitude * 32767).toInt().toShort(); input.putShort(v); input.putShort(v) }
+            input.flip()
+            return run(processor, input)
+        }
+        fun rms(samples: List<Float>): Double = kotlin.math.sqrt(samples.takeLast(24_000).map { it.toDouble() * it }.average())
+        val original = tone(1500, 0.04f, false)
+        val speech = tone(1500, 0.04f, true)
+        val bass = tone(60, 0.04f, true)
+        assertTrue(rms(speech) > rms(original) * 2)
+        assertTrue(rms(speech) > rms(bass) * 1.2)
+        val loud = tone(1500, 0.99f, true)
+        assertTrue(loud.all { it.isFinite() && abs(it) <= 1f })
+    }
+
+    @Test fun `dialogue float path limits transients and OFF returns to unprocessed stereo`() {
+        val format = AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_FLOAT)
+        val p = VolumeBoostProcessor().apply { configure(format); flush(); level = false; dialogue = true }
+        fun samples(value: Float, frames: Int) = ByteBuffer.allocateDirect(frames * 8).order(ByteOrder.nativeOrder()).apply {
+            repeat(frames) { putFloat(value); putFloat(-value) }; flip()
+        }
+        p.queueInput(samples(0.99f, 4800))
+        val boosted = p.output
+        while (boosted.hasRemaining()) assertTrue(abs(boosted.float) <= 1f)
+        p.dialogue = false
+        p.queueInput(samples(0.03f, 48_000))
+        val settled = p.output
+        var last = 0f
+        while (settled.hasRemaining()) last = settled.float
+        assertEquals(-0.03f, last, 0.00001f)
+    }
+
     /** 48 kHz mono 16 bit. */
     private val format = AudioProcessor.AudioFormat(48_000, 1, C.ENCODING_PCM_16BIT)
 

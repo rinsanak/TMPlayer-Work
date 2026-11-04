@@ -364,6 +364,8 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
     /** Subtitle files loaded from the phone; a field because its picker registers before start. */
     private val subtitleFiles = SubtitleFiles(this, { player }, { showGestureFeedback(it) })
+    private val subtitleTranslation = MalayalamSubtitles(this, subtitleFiles, { currentItem().id }, { showGestureFeedback(it) })
+    private val watchTogether = WatchTogetherController(this, { player }, { currentItem() }, { showGestureFeedback(it) })
     private var automaticMsoneJob: Job? = null
     private var automaticMsoneStarted = false
     private var subtitleChosenByViewer = false
@@ -389,6 +391,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
     /** Volume boost as the viewer left it, read before the player is built. */
     private var volumeBoostOn = false
+    private var dialogBoostOn = false
 
     /** Night mode for sound, as the viewer left it, read before the player is built. */
     private var nightModeOn = false
@@ -1524,7 +1527,6 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             onPickSpeed = ::pickSpeed,
             onCycleOrientation = ::cycleOrientation,
             onPlayEpisode = ::playEpisode,
-            onEpisodes = ::openEpisodes,
             onCopies = ::openCopies,
             // The row's picture shape button: the next shape along, as W does on the desktop.
             onCycleShape = { applyScale(videoScale.next()) },
@@ -2005,6 +2007,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             settingsSubtitlesPending = trackPlan.subtitleSource == TrackSource.Settings &&
                 (trackPlan.subtitles is SubtitlePlan.On || trackPlan.subtitles is SubtitlePlan.IfForeignAudio)
             downmixChoice = downmixRead.await()
+            dialogBoostOn = settings.dialogBoostNow()
             volumeBoostOn = boostRead.await()
             nightModeOn = nightRead.await()
             evenVolumeOn = evenRead.await()
@@ -2418,7 +2421,6 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 episodes.collect { found ->
-                    controls?.setEpisodesAvailable(found.series != null)
                     episodesState()?.let { episodesList?.update(it) }
                     controls?.setEpisodes(
                         previousEpisode = found.previous,
@@ -3402,6 +3404,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                 }
                 // After the fold, so the compressor hears the two channels that will be played.
                 val boost = VolumeBoostProcessor().also {
+                    it.dialogue = dialogBoostOn
                     it.enabled = volumeBoostOn
                     it.night = nightModeOn
                     it.level = evenVolumeOn
@@ -3467,7 +3470,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                     .setAudioTrackBufferSizeProvider(if (fireTv) PassthroughBufferCap(audioBuffers) else audioBuffers)
                     .build()
                 return DefaultAudioSink.Builder(context)
-                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableFloatOutput(false) // Keep PCM effects in the sink on every decoder route.
                     .setEnableAudioOutputPlaybackParameters(enableAudioTrackPlaybackParams)
                     .setAudioProcessors(processors)
                     .setAudioOutputProvider(output)
@@ -4155,6 +4158,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            watchTogether.changed()
             // Heard here before Media3's notification hears it: a pause lets the service out of
             // the foreground at once, so the paused notification can be swiped away.
             if (inBackgroundAudio) PlaybackService.setPlayWhenReady(playWhenReady)
@@ -4186,6 +4190,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
+            watchTogether.bufferingChanged()
             // Waiting for the stream between two samples is not slow decoding (HX37).
             if (state == Player.STATE_BUFFERING) watch.interrupted()
             when (state) {
@@ -4257,6 +4262,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             newPosition: Player.PositionInfo,
             reason: Int,
         ) {
+            if (reason == Player.DISCONTINUITY_REASON_SEEK) watchTogether.changed()
             if (reason == Player.DISCONTINUITY_REASON_SEEK) lastPlaybackPositionMs = newPosition.positionMs.coerceAtLeast(0)
             // A paused playhead moved by a seek may have left the skip pill's stretch or the
             // next-up card's last half minute, or come into them.
@@ -4743,7 +4749,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
         // ExoPlayer's own message names a codec or an internal class; it means nothing on a sofa
         // and reads as a crash. The exception still reaches logcat through ExoPlayer itself.
-        else -> L.playerErrorOther
+        else -> PlaybackFailureText.fallback(error.errorCode, error.errorCodeName)
     }
 
     /**
@@ -4777,7 +4783,14 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                 ?: runCatching { repository.topicOf(chatId, messageId) }.getOrDefault(0)
             // A page at a time until both neighbours are found: an episode posted a page away
             // from this one is still the next one.
-            val steps = EpisodeNeighbours.lookUp(here, show) { query, cursors ->
+            val seed = com.tmplayer.data.SeriesFill.seed(here.copy(topicId = topic))
+            val steps = if (seed != null) {
+                val known = com.tmplayer.data.EpisodeGuide.seriesOf(here, com.tmplayer.online.KnownMedia.all()) ?: seed
+                fun stepsOf(series: com.tmplayer.data.Series) = EpisodeNeighbours.around(here, series.episodes.flatMap { it.copies })
+                _episodes.value = stepsOf(com.tmplayer.ui.browse.WholeSeries.peek(known) ?: known)
+                val whole = com.tmplayer.ui.browse.WholeSeries.read(known, onPage = { _episodes.value = stepsOf(it) })
+                stepsOf(whole)
+            } else EpisodeNeighbours.lookUp(here, show) { query, cursors ->
                 runCatching { repository.mediaPage(chatId, cursors, query = query, topicId = topic) }.getOrNull()
             }
             _episodes.value = steps
@@ -6381,6 +6394,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         override fun stereo() = stereo
         override fun stereoTagged() = stereoTagged
         override fun stereoDetail() = stereo.detailText()
+        override fun dialogBoost() = dialogBoostOn
         override fun volumeBoost() = volumeBoostOn
         override fun nightMode() = nightModeOn
         override fun evenVolume() = evenVolumeOn
@@ -6416,6 +6430,9 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         when (entry) {
             PhoneMenuEntry.LockScreen -> lockScreen()
             PhoneMenuEntry.PictureInPicture -> enterPictureInPictureNow()
+            PhoneMenuEntry.DialogBoost -> toggleDialogBoost()
+            PhoneMenuEntry.TranslateMalayalam -> subtitleTranslation.open()
+            PhoneMenuEntry.WatchTogether -> watchTogether.open()
             PhoneMenuEntry.VolumeBoost -> toggleVolumeBoost()
             PhoneMenuEntry.NightMode -> toggleNightMode()
             PhoneMenuEntry.EvenVolume -> toggleEvenVolume()
@@ -6448,6 +6465,9 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             PlayerMenuEntry.OpenInAnotherApp -> openInAnotherApp()
             PlayerMenuEntry.SaveToDownloads -> saveToDownloads()
             PlayerMenuEntry.MarkWatched -> toggleWatched()
+            PlayerMenuEntry.DialogBoost -> toggleDialogBoost()
+            PlayerMenuEntry.TranslateMalayalam -> subtitleTranslation.open()
+            PlayerMenuEntry.WatchTogether -> watchTogether.open()
             PlayerMenuEntry.VolumeBoost -> toggleVolumeBoost()
             PlayerMenuEntry.NightMode -> toggleNightMode()
             PlayerMenuEntry.EvenVolume -> toggleEvenVolume()
@@ -6719,6 +6739,13 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
     )
 
     /** The menu's Volume boost: switched on the sound already playing, and kept for every video. */
+    private fun toggleDialogBoost() {
+        dialogBoostOn = !dialogBoostOn
+        volumeBoost?.dialogue = dialogBoostOn
+        showGestureFeedback(if (dialogBoostOn) L.playerDialogBoostOn else L.playerDialogBoostOff)
+        lifecycleScope.launch { runCatching { settings.setDialogBoost(dialogBoostOn) } }
+    }
+
     private fun toggleVolumeBoost() {
         val on = !volumeBoostOn
         volumeBoostOn = on
@@ -8526,7 +8553,9 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         showStatus(L.playerTryingAgain)
         val exo = player
         if (exo != null) {
+            val position = exo.currentPosition.coerceAtLeast(0)
             exo.prepare()
+            exo.seekTo(position)
             exo.playWhenReady = true
             return
         }
@@ -8759,6 +8788,8 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
     }
 
     override fun onDestroy() {
+        subtitleTranslation.close()
+        watchTogether.leave()
         com.tmplayer.data.SelfInstaller.removeBeforeInstall(saveBeforeInstall)
         loopHandler.removeCallbacks(watchTick)
         // Every runnable on this handler, the undo chip's expiry among them: a delayed one holds

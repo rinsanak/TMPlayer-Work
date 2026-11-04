@@ -71,7 +71,6 @@ class PlayerControls(
     /** The total was flipped between total and remaining: a tap on a phone, OK on a television. */
     private val onRemainingToggled: (Boolean) -> Unit = {},
     /** The row's Episodes button: opens the episode list. */
-    private val onEpisodes: () -> Unit = {},
     /** The row's copy button: opens the list of this video's copies. */
     private val onCopies: () -> Unit = {},
     /** The row's picture shape button: the next of Fit, Crop and Stretch. */
@@ -115,7 +114,6 @@ class PlayerControls(
 
     /** The row's buttons, without the bar and the readout. */
     private val buttons: View = root.findViewById(R.id.controls_buttons)
-    private val episodesButton: TextView = root.findViewById(R.id.control_episodes)
     private val copyButton: TextView = root.findViewById(R.id.control_copy)
 
     /** The phone's times line shows what is left rather than the total. */
@@ -265,9 +263,7 @@ class PlayerControls(
             holdFocus(shapeButton)
         }
         wire(lockButton) { onLock() }
-        wire(episodesButton) { onEpisodes() }
         wire(copyButton) { onCopies() }
-        episodesButton.text = L.episodesTitle
         rotate.visibility = if (isTv) View.GONE else View.VISIBLE
         // The scrims on five stops, which their XML stand-ins cannot hold without a seam.
         root.findViewById<View>(R.id.controls_scrim_top).background = ControlsScrim.top()
@@ -287,10 +283,10 @@ class PlayerControls(
             topButtons.getChildAt(i).nextFocusDownId = R.id.controls_timebar
         }
         listOf(centerPrevious, centerPlay, centerNext).forEach {
-            it.nextFocusUpId = R.id.controls_timebar
-            it.nextFocusDownId = View.NO_ID
+            it.nextFocusUpId = R.id.control_audio
+            it.nextFocusDownId = R.id.controls_timebar
         }
-        timeBar.nextFocusUpId = R.id.control_subtitles
+        timeBar.nextFocusUpId = R.id.center_play_pause
         if (isTv) {
             timesDuration.isFocusable = true
             timesDuration.setBackgroundResource(R.drawable.bg_tv_focus_pill)
@@ -301,8 +297,7 @@ class PlayerControls(
             }
             tipOnFocus(topMore)
         }
-        cluster.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> cluster.post { arrangeTransport() } }
-        arrangeTransport()
+
 
         // A press of D-pad left or right on the bar steps the position by this much: coarser than
         // the bare-picture arrow jumps on purpose, because opening the row to scrub is travelling,
@@ -642,19 +637,6 @@ class PlayerControls(
      * Shows or hides the phone's two extra buttons by the room the row has. Before the first
      * layout the width is the screen's, less the row's padding.
      */
-    private fun arrangeTransport() {
-        val parent = times as? android.widget.LinearLayout ?: return
-        if (center.parent === parent) return
-        val focused = center.findFocus()
-        (center.parent as? android.view.ViewGroup)?.removeView(center)
-        center.layoutParams = android.widget.LinearLayout.LayoutParams(
-            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-            (40 * cluster.resources.displayMetrics.density).toInt(),
-        )
-        parent.addView(center, 1)
-        focused?.requestFocus()
-    }
-
     private fun fitRow() {
         if (isTv) {
             shapeButton.visibility = if (shapeOffered) View.VISIBLE else View.GONE
@@ -758,7 +740,6 @@ class PlayerControls(
             R.id.control_rotate to L.playerScreenOrientation,
             R.id.control_lock to L.playerLockScreen,
             R.id.control_tv_more to L.commonMore,
-            R.id.control_episodes to L.episodesTitle,
             R.id.control_copy to L.playerCopies,
         )
         for ((id, name) in names) root.findViewById<View>(id)?.contentDescription = name
@@ -842,16 +823,6 @@ class PlayerControls(
         centerNextCaption.visibility = View.GONE
     }
 
-    /** Episode browsing stays on the detail page rather than covering the player. */
-    fun setEpisodesAvailable(@Suppress("UNUSED_PARAMETER") available: Boolean) {
-        val wanted = View.GONE
-        if (episodesButton.visibility == wanted) return
-        // Leaving the button the remote stands on would drop focus on the floor: back to the row.
-        val hadFocus = episodesButton.hasFocus()
-        episodesButton.visibility = wanted
-        if (hadFocus) focusRow()
-    }
-
     /**
      * Names the copy playing on the copy button ("1080p"), or takes the button away with null: a
      * video with no other copy has nothing to switch to.
@@ -873,11 +844,7 @@ class PlayerControls(
     }
 
     /** Puts the remote back on the Episodes button, for when the list it opened closes. */
-    fun focusEpisodes() {
-        if (!isTv || !visible || episodesButton.visibility != View.VISIBLE) return
-        episodesButton.requestFocus()
-        poke()
-    }
+    fun focusEpisodes() = focusRow()
 
     private fun caption(view: TextView, text: String?) {
         view.text = text.orEmpty()

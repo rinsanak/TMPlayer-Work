@@ -830,6 +830,12 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
      * Volume boost, the player menu's night mode: quiet dialogue lifted and loud scenes held back.
      * Off until the viewer turns it on, and then kept for every video until they turn it off.
      */
+    val dialogBoost: Flow<Boolean> = read { it[androidx.datastore.preferences.core.booleanPreferencesKey("dialog_boost")] ?: false }
+    suspend fun dialogBoostNow(): Boolean = prefs.data.first()[androidx.datastore.preferences.core.booleanPreferencesKey("dialog_boost")] ?: false
+    suspend fun setDialogBoost(value: Boolean) {
+        prefs.edit { it[androidx.datastore.preferences.core.booleanPreferencesKey("dialog_boost")] = value }
+    }
+
     val volumeBoost: Flow<Boolean> = read { it[VOLUME_BOOST] ?: false }
 
     suspend fun setVolumeBoost(value: Boolean) {
@@ -1191,7 +1197,7 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
     val homeLayout: Flow<HomeLayout> = read {
         HomeLayout.of(
             carousel = it[HOME_CAROUSEL],
-            continueWatching = it[HOME_CONTINUE],
+            continueWatching = if (TgStreamUi.active) false else it[HOME_CONTINUE],
             recentlyAdded = it[HOME_RECENT],
             starredRows = it[HOME_STARRED_ROWS],
         )

@@ -237,7 +237,7 @@ object HomeRows {
         val seen = HashSet<String>()
         // Continue watching off: nothing is in progress as far as Home goes, so a film part way
         // through still shows in its chat's row rather than vanishing from Home altogether.
-        val continueWatching = if (layout.continueWatching) continueWatching.filter {
+        val continueWatching = if (!TgStreamUi.active && layout.continueWatching) continueWatching.filter {
             !TgStreamUi.active || HomeContent.eligible(it.toMediaItem())
         } else emptyList()
 

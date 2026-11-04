@@ -15,6 +15,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WholeSeriesTest {
+    @Test fun `player gets next episode from complete series even beyond old search budget`() = runTest {
+        val chat = 82901L
+        val current = episode(chat, 1)
+        val seed = requireNotNull(com.tmplayer.data.SeriesFill.seed(current))
+        var page = 0
+        val whole = WholeSeries.read(seed, fetch = { _, _, _, _ ->
+            page++
+            MediaPage(if (page == 10) listOf(episode(chat, 2)) else emptyList(), MediaCursors(video = page.toLong()), page == 10)
+        }, mergeDispatcher = StandardTestDispatcher(testScheduler))
+        val steps = com.tmplayer.data.EpisodeNeighbours.around(current, whole.episodes.flatMap { it.copies })
+        assertEquals(episode(chat, 2).id, steps.next?.id)
+        assertEquals(2, steps.nextTag?.episode)
+        assertEquals(whole.episodeCount, com.tmplayer.data.EpisodeNeighbours.around(current, requireNotNull(WholeSeries.peek(seed)).episodes.flatMap { it.copies }).series?.episodeCount)
+    }
+
     @Test fun `Continue detail single episode searches all seasons regardless of discovery size`() = runTest {
         val chat = 81901L
         val sparse = episode(chat, 1).copy(fileId = 0, mimeType = "")

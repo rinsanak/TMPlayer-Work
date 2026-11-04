@@ -25,7 +25,7 @@ object HomeContent {
         }
         // Cached groups are parsed again from the original files. An older parser could fold
         // unrelated channel-prefixed titles into one card and keep that mistake on restart.
-        val regrouped = rows.map { row -> when (row) {
+        val regrouped = rows.filterNot { TgStreamUi.active && it is HomeRow.Continue }.map { row -> when (row) {
             is HomeRow.Recent -> row.copy(entries = originals(row.entries))
             is HomeRow.Chat -> row.copy(entries = originals(row.entries))
             else -> row

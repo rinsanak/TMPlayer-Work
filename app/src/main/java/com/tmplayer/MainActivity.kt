@@ -2009,7 +2009,6 @@ private fun Root() {
                             is HomeRow.Continue, is HomeRow.WatchLater, is HomeRow.NewEpisodes -> Unit
                         }
                     },
-                    onHomeArtWanted = homeViewModel::requestArt,
                     homeFeedOf = homeViewModel::seeAll,
                     chatPaging = chatsViewModel.paging.collectAsStateWithLifecycle().value,
                     onMoreChats = chatsViewModel::loadMoreChats,

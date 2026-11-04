@@ -55,7 +55,7 @@ jobs:
       - name: Select focused release checks
         id: checks
         run: |
-          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.9 ]; then
+          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.10 ]; then
             echo "focused=true" >> "$GITHUB_OUTPUT"
             echo "data=true" >> "$GITHUB_OUTPUT"
             echo "player=true" >> "$GITHUB_OUTPUT"
@@ -71,7 +71,7 @@ jobs:
       - name: Run core and ui tests
         run: |
           if [ "${{ steps.checks.outputs.player }}" = true ]; then
-            ./gradlew :core:jvmTest --tests '*MediaNameTest' --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*SameTitleTest' --tests '*SeriesFillTest' --tests '*SeriesShelf*Test' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
+            ./gradlew :core:jvmTest --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*EpisodeStepsTest' --tests '*DialogBoostStoreTest' --tests '*WatchSyncTest' --tests '*SubtitleTranslationTest' --tests '*TranslatorTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
           elif [ "${{ steps.checks.outputs.data }}" = true ]; then
             ./gradlew :core:jvmTest --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*HomeFeaturedTest' --tests '*SameTitleTest' --tests '*SeriesFillTest' --tests '*SeriesShelf*Test' --tests '*HomeAutoFillTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
           elif [ "${{ steps.checks.outputs.focused }}" = true ]; then
@@ -100,7 +100,7 @@ jobs:
       - name: Check compact player layout and TV focus
         if: steps.checks.outputs.player == 'true'
         timeout-minutes: 10
-        run: ./gradlew :app:testDebugUnitTest --tests '*PlayerExtrasRow*Test'
+        run: ./gradlew :app:testDebugUnitTest --tests '*PlayerExtrasRow*Test' --tests '*VolumeBoostProcessorTest' --tests '*PlayerMenuTest' --tests '*PlaybackFailureTextTest'
 
       - name: Run unit tests
         if: steps.checks.outputs.focused != 'true'
@@ -128,7 +128,6 @@ jobs:
             core/build/reports/tests/
             ui/build/reports/tests/
             app/build/reports/tests/
-            app/build/device-test/review/extras-row-*.png
           retention-days: 14
           if-no-files-found: ignore
 

@@ -32,6 +32,9 @@ enum class PlayerMenuEntry {
     /** The speeds as a page, the one playing on the line; the row's button opens the same page. */
     Speed,
     /** Louder: quiet dialogue lifted, the peaks kept from clipping. On or off, and the panel stays. */
+    DialogBoost,
+    TranslateMalayalam,
+    WatchTogether,
     VolumeBoost,
     /** Night mode: the range squeezed, so loud scenes are quieter and dialogue clearer. */
     NightMode,
@@ -86,6 +89,9 @@ enum class PhoneMenuEntry {
     Stereo,
     /** The speeds as a page, the one playing on the line, as the row's button opens them. */
     Speed,
+    DialogBoost,
+    TranslateMalayalam,
+    WatchTogether,
     VolumeBoost,
     NightMode,
     EvenVolume,
@@ -133,6 +139,9 @@ fun PhoneMenuEntry.label(
     PhoneMenuEntry.ResetZoom -> L.playerResetZoom
     PhoneMenuEntry.Stereo -> stereo?.let { L.commonWithDetail(L.playerStereo, it) } ?: L.playerStereo
     PhoneMenuEntry.Speed -> L.playerSpeed
+    PhoneMenuEntry.DialogBoost -> L.playerDialogBoost
+    PhoneMenuEntry.TranslateMalayalam -> L.playerTranslateMalayalam
+    PhoneMenuEntry.WatchTogether -> L.playerWatchTogether
     PhoneMenuEntry.VolumeBoost -> L.playerVolumeBoost
     PhoneMenuEntry.NightMode -> L.playerNightMode
     PhoneMenuEntry.EvenVolume -> L.playerEvenVolume
@@ -207,6 +216,9 @@ object PlayerMenu {
         if (pictureShape) add(PlayerMenuEntry.PictureShape)
         if (stereo) add(PlayerMenuEntry.Stereo)
         add(PlayerMenuEntry.Speed)
+        add(PlayerMenuEntry.DialogBoost)
+        add(PlayerMenuEntry.TranslateMalayalam)
+        add(PlayerMenuEntry.WatchTogether)
         add(PlayerMenuEntry.VolumeBoost)
         add(PlayerMenuEntry.NightMode)
         add(PlayerMenuEntry.EvenVolume)
@@ -262,6 +274,9 @@ object PlayerMenu {
         if (pictureShape && zoomed) add(PhoneMenuEntry.ResetZoom)
         if (stereo) add(PhoneMenuEntry.Stereo)
         add(PhoneMenuEntry.Speed)
+        add(PhoneMenuEntry.DialogBoost)
+        add(PhoneMenuEntry.TranslateMalayalam)
+        add(PhoneMenuEntry.WatchTogether)
         add(PhoneMenuEntry.VolumeBoost)
         add(PhoneMenuEntry.NightMode)
         add(PhoneMenuEntry.EvenVolume)

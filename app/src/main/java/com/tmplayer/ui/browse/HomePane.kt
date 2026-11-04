@@ -135,12 +135,9 @@ internal fun HomePane(
     end: Dp,
     bottom: Dp,
     onRowShown: (HomeRow) -> Unit,
-    onArtWanted: (ResumeRecord) -> Unit,
-    onResume: (ResumeRecord) -> Unit,
     onPlay: (MediaItem, String) -> Unit,
     /** A long press, a held OK or the info key on a video's tile: its detail panel. */
     onHoldMedia: (MediaItem, String) -> Unit,
-    onSeeContinue: () -> Unit,
     onOpenChat: (Long) -> Unit,
     /**
      * True when no chat is starred, so Home has no chat rows to show and says how to get them.
@@ -291,28 +288,6 @@ internal fun HomePane(
     val shellLifecycle = LocalLifecycleOwner.current.lifecycle
     val shellState by shellLifecycle.currentStateFlow.collectAsState()
     val windowFocusedNow by androidx.compose.runtime.rememberUpdatedState(windowFocused)
-    // The Continue watching card a hold menu was opened on, and where it stood in the row: when
-    // the menu takes it out of History the remote moves to the card that took its place (or, the
-    // row gone, to the top of Home), rather than being left on nothing. Forgotten once the shell
-    // is covered (the player), so a card finished there does not move the remote on the way back.
-    var heldContinue by remember { mutableStateOf<Pair<String, Int>?>(null) }
-    val continueRefocus = remember { FocusRequester() }
-    val continueRecords = (listed.firstOrNull { it is HomeRow.Continue } as? HomeRow.Continue)?.records.orEmpty()
-    val heldContinueGone = heldContinue?.let { (key, _) ->
-        continueRecords.none { SettingsStore.progressKey(it.chatId, it.messageId) == key }
-    } == true
-    val continueStandIn = if (heldContinueGone) continueRecords.getOrNull(minOf(heldContinue?.second ?: 0, continueRecords.lastIndex)) else null
-    LaunchedEffect(shellState.isAtLeast(Lifecycle.State.RESUMED)) {
-        if (!shellState.isAtLeast(Lifecycle.State.RESUMED)) heldContinue = null
-    }
-    LaunchedEffect(heldContinueGone, continueStandIn?.let { SettingsStore.progressKey(it.chatId, it.messageId) }) {
-        if (!heldContinueGone) return@LaunchedEffect
-        if (!touch) {
-            withFrameNanos { }
-            if (continueStandIn != null) runCatching { continueRefocus.requestFocus() } else runCatching { first.requestFocus() }
-        }
-        heldContinue = null
-    }
     // The row (by key) or the carousel the remote is in right now, null when it is elsewhere.
     val focusedSpot = remember { arrayOfNulls<String>(1) }
     // Whether the remote has been in Home in this composition, so the first "no focus" report a
@@ -618,7 +593,7 @@ internal fun HomePane(
                     val title = homeRowTitle(row, s)
                     // Only a row that leaves something out offers the rest of it.
                     val seeAll: (() -> Unit)? = when (row) {
-                        is HomeRow.Continue -> onSeeContinue
+                        is HomeRow.Continue -> null
                         is HomeRow.WatchLater -> onSeeWatchLater
                         is HomeRow.Chat -> { { onOpenChat(row.chatId) } }
                         is HomeRow.Recent -> { { seeAllKey = row.key } }
@@ -661,33 +636,7 @@ internal fun HomePane(
                             return@Column
                         }
                         when (row) {
-                            is HomeRow.Continue -> TileRow(start, end, rowTiles, seeAll = seeAllEnd?.copy(width = continueWidth(touch))) {
-                                items(row.records, key = { "r-${it.chatId}_${it.messageId}" }) { record ->
-                                    val key = SettingsStore.progressKey(record.chatId, record.messageId)
-                                    LaunchedEffect(key) { onArtWanted(record) }
-                                    val item = art[key] ?: remember(record) { record.toMediaItem() }
-                                    val chat = record.chatTitle.ifEmpty { chatTitle(record.chatId) }
-                                    val strings = LocalStrings.current
-                                    VideoTile(
-                                        artworkOnly = true,
-                                        title = remember(item, strings) { continueCardTitle(item, strings) },
-                                        onClick = { onResume(record) },
-                                        // The detail panel, as on every other tile here: it already
-                                        // offers Resume, Start over and Mark watched for a video with
-                                        // a saved place.
-                                        onLongClick = {
-                                            heldContinue = key to row.records.indexOf(record)
-                                            onHoldMedia(item, chat)
-                                        },
-                                        modifier = Modifier.width(continueWidth(touch))
-                                            .then(if (isFirst && record === row.records.first()) Modifier.focusRequester(first) else Modifier)
-                                            .then(if (record === continueStandIn) Modifier.focusRequester(continueRefocus) else Modifier),
-                                        meta = { ink -> CaptionLine(telegramFacts(chat, item), ink) },
-                                    ) {
-                                        ContinueCardArt(record, item, Modifier.fillMaxSize())
-                                    }
-                                }
-                            }
+                            is HomeRow.Continue -> Unit
                             is HomeRow.WatchLater -> TileRow(start, end, rowTiles, seeAll = seeAllEnd?.copy(width = wideWidth(touch))) {
                                 items(row.records, key = { "l-${it.id}" }) { record ->
                                     LaunchedEffect(record.key) { onLaterArtWanted(record) }
@@ -1319,7 +1268,6 @@ private fun wideWidth(touch: Boolean): Dp = if (touch) 200.dp else 176.dp
  * A Continue watching card, a little wider, as it carries its name on the art. On a television four
  * or so across, so the first row under the carousel fits whole on the first screen.
  */
-private fun continueWidth(touch: Boolean): Dp = if (touch) 247.dp else 208.dp
 
 private const val PLACEHOLDER_TILES = 5
 

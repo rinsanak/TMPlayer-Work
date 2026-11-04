@@ -290,7 +290,6 @@ internal fun BrowseScreen(
     onRetryFolders: () -> Unit = {},
     /** A row came on screen without its videos: fetch them. */
     onHomeRowShown: (HomeRow) -> Unit = {},
-    onHomeArtWanted: (ResumeRecord) -> Unit = {},
     /** Recently added reads on through Home's chats as it is scrolled to its end. */
     homeFeedOf: (HomeRow) -> com.tmplayer.ui.browse.RowFeed? = { null },
     onHomeLaterArtWanted: (WatchLaterRecord) -> Unit = {},
@@ -666,18 +665,11 @@ internal fun BrowseScreen(
                                 end = insets.end + if (touch) 0.dp else Tv.SafeH,
                                 bottom = insets.bottom,
                                 onRowShown = onHomeRowShown,
-                                onArtWanted = onHomeArtWanted,
                                 feedOf = homeFeedOf,
-                                onResume = openResume,
                                 onPlay = openMedia,
                                 onPlayNow = onPlayMedia,
                                 onDetails = showDetail,
                                 onHoldMedia = holdMedia,
-                                onSeeContinue = {
-                                    pickHistory(HistoryTab.Continue)
-                                    onPickTab(BrowseSection.of(BrowseTab.History))
-                                    query = ""
-                                },
                                 onOpenChat = { id -> data.chats.firstOrNull { it.id == id }?.let(onOpenChat) },
                                 // Starred chats get a row each under Recently added (2026-10-23), so
                                 // with none the hint says how to add them; only once the rows are

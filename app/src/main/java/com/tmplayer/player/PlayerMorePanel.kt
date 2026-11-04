@@ -127,6 +127,7 @@ interface PlayerMoreHost {
     fun stereo(): Stereo3d
     fun stereoTagged(): Stereo3d.Layout?
     fun stereoDetail(): String?
+    fun dialogBoost(): Boolean = false
     fun volumeBoost(): Boolean
     fun nightMode(): Boolean
     fun evenVolume(): Boolean
@@ -382,7 +383,7 @@ class PlayerMorePanel(
     /** Every line the panel can carry: the phone's and the television's entries share these names. */
     private enum class Kind {
         LockScreen, PictureInPicture, PlaybackDetails, StartOver, PictureShape, ResetZoom, Stereo, Speed,
-        VolumeBoost, NightMode, EvenVolume, SleepTimer, AbLoop, NextChapter, PreviousChapter,
+        DialogBoost, TranslateMalayalam, WatchTogether, VolumeBoost, NightMode, EvenVolume, SleepTimer, AbLoop, NextChapter, PreviousChapter,
         NextFrame, PreviousFrame, SaveFrame, AddBookmark, Bookmarks, OpenInAnotherApp,
         LoadSubtitleFile, SaveToDownloads, MarkWatched, RemoteKeys,
     }
@@ -438,6 +439,9 @@ class PlayerMorePanel(
             Kind.ResetZoom -> Line(kind, s.playerResetZoom, TmIcons.Refresh, host.zoomDetail())
             Kind.Stereo -> Line(kind, s.playerStereo, TmIcons.Visibility, host.stereoDetail() ?: s.commonOff)
             Kind.Speed -> Line(kind, s.playerSpeed, ImageVector.vectorResource(R.drawable.ic_speed), PlaybackSpeed.label(host.speed()))
+            Kind.DialogBoost -> Line(kind, s.playerDialogBoost, volume, if (host.dialogBoost()) s.commonOn else s.commonOff)
+            Kind.TranslateMalayalam -> Line(kind, s.playerTranslateMalayalam, TmIcons.Subtitles, null)
+            Kind.WatchTogether -> Line(kind, s.playerWatchTogether, TmIcons.Remote, null)
             Kind.VolumeBoost -> Line(kind, s.playerVolumeBoost, volume, if (host.volumeBoost()) s.playerVolumeBoostOnDetail else s.commonOff)
             Kind.NightMode -> Line(kind, s.playerNightMode, TmIcons.VolumeDown, if (host.nightMode()) s.playerNightModeOnDetail else s.commonOff)
             Kind.EvenVolume -> Line(kind, s.playerEvenVolume, volume, if (host.evenVolume()) s.playerEvenVolumeOnDetail else s.commonOff)
@@ -719,7 +723,7 @@ class PlayerMorePanel(
         const val SCRIM_ALPHA = 0.32f
 
         /** Lines that act and leave the panel up: the switches and the frame steps. */
-        val STAYS_OPEN = setOf(Kind.VolumeBoost, Kind.NightMode, Kind.EvenVolume, Kind.NextFrame, Kind.PreviousFrame)
+        val STAYS_OPEN = setOf(Kind.DialogBoost, Kind.VolumeBoost, Kind.NightMode, Kind.EvenVolume, Kind.NextFrame, Kind.PreviousFrame)
     }
 }
 

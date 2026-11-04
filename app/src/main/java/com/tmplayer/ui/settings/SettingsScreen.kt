@@ -1334,15 +1334,6 @@ fun SettingsScreen(
                         onToggle = { scope.launch { settings.setHomeCarousel(!homeLayout.carousel) } },
                     )
                 }
-                item(key = "home_continue") {
-                    ToggleRow(
-                        title = s.settingsHomeContinue,
-                        subtitle = if (homeLayout.continueWatching) s.settingsHomeContinueOn else s.settingsHomeContinueOff,
-                        icon = TmIcons.History,
-                        checked = homeLayout.continueWatching,
-                        onToggle = { scope.launch { settings.setHomeContinue(!homeLayout.continueWatching) } },
-                    )
-                }
                 item(key = "home_recent") {
                     ToggleRow(
                         title = s.settingsHomeRecent,
