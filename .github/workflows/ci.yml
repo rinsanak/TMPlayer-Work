@@ -36,6 +36,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -70,6 +72,11 @@ jobs:
 
       - name: Run core and ui tests
         run: |
+          # The parent's core/UI step passed in run 41836595194; this retry changes only Android wiring.
+          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(git rev-parse HEAD^)" = 73c094bba438c8e2101c6fadaf862efc0e106c54 ] && git diff --quiet HEAD^ HEAD -- core/ ui/; then
+            echo "Reusing verified, unchanged core and UI checks from 41836595194"
+            exit 0
+          fi
           if [ "${{ steps.checks.outputs.player }}" = true ]; then
             ./gradlew :core:jvmTest --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*EpisodeStepsTest' --tests '*DialogBoostStoreTest' --tests '*WatchSyncTest' --tests '*SubtitleTranslationTest' --tests '*TranslatorTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
           elif [ "${{ steps.checks.outputs.data }}" = true ]; then

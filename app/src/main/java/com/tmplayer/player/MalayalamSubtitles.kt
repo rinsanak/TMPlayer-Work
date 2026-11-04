@@ -95,7 +95,7 @@ class MalayalamSubtitles(private val activity: FragmentActivity, private val sub
                     }
                 }
                 ensureActive()
-                if (media() == anchor) subtitles.loadFile(file, "Malayalam.ml.${file.extension}")
+                if (media() == anchor) subtitles.attachChatFile(file, "Malayalam.ml.${file.extension}")
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 val status = e.message?.takeIf { it.matches(Regex("Gemini HTTP [0-9]{3}")) }.orEmpty()

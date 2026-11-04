@@ -292,8 +292,8 @@ class VolumeBoostProcessor : BaseAudioProcessor() {
          */
         fun settledOutput(input: Float, boost: Boolean, night: Boolean): Float {
             val lifted = input * targetGain(boost, night)
-            val threshold = if (dialogue) 0.22f else if (night) NIGHT_THRESHOLD else THRESHOLD
-            val ratio = if (dialogue) 5f else if (night) NIGHT_RATIO else RATIO
+            val threshold = if (night) NIGHT_THRESHOLD else THRESHOLD
+            val ratio = if (night) NIGHT_RATIO else RATIO
             return (lifted * squeeze(lifted, threshold, ratio)).coerceAtMost(1f)
         }
 
