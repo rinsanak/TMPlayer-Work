@@ -55,6 +55,22 @@ class HomeRowsTest {
     }
 
     @Test
+    fun `TG Stream recent keeps newest twenty titles without expanding chat rows`() {
+        val before = TgStreamUi.active
+        TgStreamUi.active = true
+        try {
+            val videos = (1..25).map {
+                video(1, date = it).copy(fileId = it, durationSec = 7200, sizeBytes = 1_000_000_000)
+            }
+            val rows = HomeRows.build(emptyList(), listOf(chat(1)), mapOf(1L to videos), videos, recentMinStarred = 1)
+            assertEquals(videos.sortedByDescending { it.date }.take(20).map { it.messageId }, ids(rows.filterIsInstance<HomeRow.Recent>().single()))
+            assertEquals(HomeRows.LIMIT, rows.filterIsInstance<HomeRow.Chat>().single().entries.size)
+        } finally {
+            TgStreamUi.active = before
+        }
+    }
+
+    @Test
     fun `rows come in order continue, recent, then starred chats`() {
         val a = video(1)
         val b = video(2)

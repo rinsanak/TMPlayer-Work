@@ -57,7 +57,11 @@ jobs:
       - name: Select focused release checks
         id: checks
         run: |
-          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.11 ]; then
+          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.12 ]; then
+            echo "focused=true" >> "$GITHUB_OUTPUT"
+            echo "data=true" >> "$GITHUB_OUTPUT"
+            echo "home=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.11 ]; then
             echo "focused=true" >> "$GITHUB_OUTPUT"
             echo "data=true" >> "$GITHUB_OUTPUT"
             echo "player=true" >> "$GITHUB_OUTPUT"
@@ -72,7 +76,9 @@ jobs:
 
       - name: Run core and ui tests
         run: |
-          if [ "${{ steps.checks.outputs.player }}" = true ]; then
+          if [ "${{ steps.checks.outputs.home }}" = true ]; then
+            ./gradlew :core:jvmTest --tests '*HomeRowsTest' --tests '*HomeContentTest'
+          elif [ "${{ steps.checks.outputs.player }}" = true ]; then
             ./gradlew :core:jvmTest --tests '*HomeResumeTest' --tests '*WatchSyncTest'
           elif [ "${{ steps.checks.outputs.data }}" = true ]; then
             ./gradlew :core:jvmTest --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*HomeFeaturedTest' --tests '*SameTitleTest' --tests '*SeriesFillTest' --tests '*SeriesShelf*Test' --tests '*HomeAutoFillTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
@@ -98,6 +104,11 @@ jobs:
           else
             ./gradlew :app:testDebugUnitTest --tests '*DiagnosticSessionTest' --tests '*GlassCards*Test' --tests '*PlayerExtras*Test' --tests '*FastScrollerRender*Test' --tests '*TvReach*Test'
           fi
+
+      - name: Check TV Home artwork and phone regression
+        if: steps.checks.outputs.home == 'true'
+        timeout-minutes: 10
+        run: ./gradlew :app:testDebugUnitTest --tests '*FeaturedCarouselRenderTest' --tests '*TvHomeArtworkTest'
 
       - name: Check compact player layout and TV focus
         if: steps.checks.outputs.player == 'true'

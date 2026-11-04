@@ -316,7 +316,9 @@ private fun TvFeaturedArt(pick: FeaturedPick, chatTitle: (Long) -> String, start
     // A show's backdrop rather than one episode's still: the page stands for the whole show.
     val meta = rememberMeta(item, showOnly = pick.isShow)
     val cover = rememberCover(item, chat)
-    val source = remember(item, meta?.wideUrl, meta?.posterUrl, cover) { BackdropSource(item.miniThumbnail, item.thumbnailFileId, cover, meta?.wideUrl, meta?.posterUrl) }
+    val source = remember(item, meta?.wideUrl, meta?.posterUrl, cover) {
+        tvHomeBackdropSource(item, cover, meta?.wideUrl, meta?.posterUrl)
+    }
     val title = remember(pick) { series?.title?.ifBlank { null } ?: pick.loneEpisode?.title ?: SeriesShelf.tileTitle(item) }
     val facts = remember(pick, chat, s) { featuredFacts(pick, title, chat, s) }
     Box(
@@ -512,3 +514,9 @@ private val TITLE_TOP_GAP = 32.dp
 
 /** The row of dots' own height: a 6 dp mark with room above and below. */
 private val TV_DOTS_HEIGHT = 22.dp
+
+/** Keep a matched title's artwork separate from channel-logo thumbnails. */
+internal fun tvHomeBackdropSource(item: MediaItem, cover: com.tmplayer.ui.components.Cover, wideUrl: String?, posterUrl: String?): BackdropSource {
+    val matchedArt = !wideUrl.isNullOrBlank() || !posterUrl.isNullOrBlank()
+    return BackdropSource(if (matchedArt) null else item.miniThumbnail, if (matchedArt) 0 else item.thumbnailFileId, cover, wideUrl, posterUrl)
+}

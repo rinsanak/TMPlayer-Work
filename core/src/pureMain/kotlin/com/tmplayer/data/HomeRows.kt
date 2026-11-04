@@ -282,7 +282,7 @@ object HomeRows {
                 // fetch, and a starred chat's fetch fills in whatever the search did not reach.
                 val pool = recent.filter { it.chatId in starredIds } + starredIds.flatMap { loaded[it].orEmpty() }
                 // A copy, so the rows below still show these videos in their own chats.
-                val entries = row(pool, HashSet(inContinue), shownCopies, inContinue)
+                val entries = row(pool, HashSet(inContinue), shownCopies, inContinue, limit = if (TgStreamUi.active) 20 else LIMIT)
                 if (entries.isNotEmpty()) {
                     add(HomeRow.Recent(entries, loaded = true, starredOnly = starredOnly, chatIds = homeOrder, asRow = asRow))
                 } else if (chatsPending || (if (recentFrom == null) starredIds.any { it !in loaded } else homeOrder.take(CHOSEN_WAIT).any { it !in loaded })) {
@@ -375,8 +375,9 @@ object HomeRows {
         seen: MutableSet<String>,
         continuing: Set<String> = emptySet(),
         inProgress: Set<String> = emptySet(),
+        limit: Int = LIMIT,
     ): List<ShelfEntry> {
-        val entries = arranged(items, seen, continuing, inProgress).take(LIMIT)
+        val entries = arranged(items, seen, continuing, inProgress).take(limit)
         markSeen(entries, seen)
         return entries
     }

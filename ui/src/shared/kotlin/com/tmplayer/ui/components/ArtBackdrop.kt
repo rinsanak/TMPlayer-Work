@@ -208,9 +208,10 @@ internal fun rememberBackdropArt(source: BackdropSource, drawn: Int): BackdropAr
         // No wide picture and Telegram's own too small to stand: the online poster, sharp.
         if (full == null || full.width < SHARP_MIN_WIDTH) {
             val poster = source.posterUrl?.let { url ->
-                online?.let { provider -> Thumbnails.sharp(url, POSTER_WIDTH, POSTER_WIDTH, MetaImageSize::atLeast) { provider.image(it) } }
+                Thumbnails.peekSharp(url, POSTER_WIDTH, POSTER_WIDTH, MetaImageSize::atLeast)
+                    ?: online?.let { provider -> Thumbnails.sharp(url, POSTER_WIDTH, POSTER_WIDTH, MetaImageSize::atLeast) { provider.image(it) } }
             }
-            if (poster != null && poster.width >= SHARP_MIN_WIDTH) {
+            if (poster != null) {
                 art = BackdropArt(picture = poster)
                 return@LaunchedEffect
             }
@@ -269,6 +270,7 @@ suspend fun prefetchBackdrop(wideUrl: String?, thumbnailFileId: Int) {
 /** What is already decoded for [source], so a backdrop seen before is there on the first frame. */
 private fun peek(source: BackdropSource, pixels: Int): BackdropArt? {
     source.wideUrl?.let { url -> Thumbnails.peekSharp(url, pixels, ONLINE_WIDTH, MetaImageSize::atLeast)?.let { return BackdropArt(picture = it) } }
+    source.posterUrl?.let { url -> Thumbnails.peekSharp(url, POSTER_WIDTH, POSTER_WIDTH, MetaImageSize::atLeast)?.let { return BackdropArt(picture = it) } }
     val full = Thumbnails.peekFull(source.thumbnailFileId) ?: return null
     return if (full.width >= SHARP_MIN_WIDTH) BackdropArt(picture = full) else null
 }

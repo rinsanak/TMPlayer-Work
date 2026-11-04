@@ -95,7 +95,7 @@ fun EdgeBackdrop(
                 // the same picture, rather than a cover of other colours flashing first.
                 val picture = step.picture ?: step.field
                 val tint = remember(picture) { picture?.let(::artworkTint) }
-                if (tint != null) Box(Modifier.fillMaxSize().background(tint))
+                if (tint != null && !Motion.television) Box(Modifier.fillMaxSize().background(tint))
                 // The size the picture is drawn at, in pixels: its own shape at the share of the
                 // width, no taller than the frame (cropped from its foot then), and a small one
                 // capped at a few times its own pixels.
@@ -103,7 +103,8 @@ fun EdgeBackdrop(
                 // its top as well, so it reads as a vignette rather than a strip under the clock.
                 // The stand-in is meant blurry, so it is stretched to the full size, never floated.
                 val standIn = step.picture == null
-                val small = wide && !standIn && picture != null && picture.width < SHARP_MIN_WIDTH
+                val small = wide && !standIn && picture != null && picture.width < SHARP_MIN_WIDTH &&
+                    !(Motion.television && source.posterUrl != null && picture.height > picture.width)
                 // Blurred whenever it isn't the sharp picture itself: the field alone, or a real
                 // but small Telegram thumbnail, read as a loading placeholder rather than a small
                 // sharp picture sitting oddly on the page (user, 2026-10-31, the Home carousel).
