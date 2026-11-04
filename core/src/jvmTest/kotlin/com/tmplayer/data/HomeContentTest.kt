@@ -4,6 +4,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class HomeContentTest {
+    @Test fun `video channel RT marks regroup cached copies without merging remakes`() {
+        val names = listOf("Avarachan.and.Sons.2026.1080p.mkv", "@EverMovies RTAvarachan.and.Sons.2026.720p.mkv", "RT Avarachan & Sons 2026 720p.mkv", "www.example.org - RT_Avarachan.and.Sons.2026.Tamil.mkv")
+        val copies = names.mapIndexed { i, name -> video(300L + i, name) }
+        val remake = video(310, "Avarachan.and.Sons.2001.1080p.mkv")
+        val cached = copies.first().copy(versions = copies.take(2))
+        val rows = HomeContent.clean(listOf(HomeRow.Recent(listOf(ShelfEntry.File(cached)) + (copies.drop(2) + remake).map { ShelfEntry.File(it) }, true)))
+        val entries = (rows.single() as HomeRow.Recent).entries.map { (it as ShelfEntry.File).item }
+        assertEquals(2, entries.size)
+        assertEquals(copies.map { it.id }.toSet(), entries.first { TitleIdentity.year(it) == 2026 }.versions.map { it.id }.toSet())
+    }
+
     @Test fun `copies from later Home rows are retained in the first card`() {
         val a = video(31, "Quiet.Hills.2020.1080p.mkv")
         val b = video(32, "Quiet.Hills.2020.720p.Tamil.mkv")

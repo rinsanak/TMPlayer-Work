@@ -52,10 +52,14 @@ jobs:
       # shared Compose half that the desktop app builds on too. Their tests run on a plain JVM,
       # the way the desktop runs them. Both are Kotlin Multiplatform libraries on AGP's own
       # plugin, which has no Android host tests here, so jvmTest is the whole of their suites.
-      - name: Select checks for the artwork and Glass fix
+      - name: Select focused release checks
         id: checks
         run: |
-          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.8 ]; then
+          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.9 ]; then
+            echo "focused=true" >> "$GITHUB_OUTPUT"
+            echo "data=true" >> "$GITHUB_OUTPUT"
+            echo "player=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.8 ]; then
             echo "focused=true" >> "$GITHUB_OUTPUT"
             echo "data=true" >> "$GITHUB_OUTPUT"
           elif [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.7 ]; then
@@ -66,7 +70,9 @@ jobs:
 
       - name: Run core and ui tests
         run: |
-          if [ "${{ steps.checks.outputs.data }}" = true ]; then
+          if [ "${{ steps.checks.outputs.player }}" = true ]; then
+            ./gradlew :core:jvmTest --tests '*MediaNameTest' --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*SameTitleTest' --tests '*SeriesFillTest' --tests '*SeriesShelf*Test' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
+          elif [ "${{ steps.checks.outputs.data }}" = true ]; then
             ./gradlew :core:jvmTest --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*HomeFeaturedTest' --tests '*SameTitleTest' --tests '*SeriesFillTest' --tests '*SeriesShelf*Test' --tests '*HomeAutoFillTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
           elif [ "${{ steps.checks.outputs.focused }}" = true ]; then
             ./gradlew :core:jvmTest --tests 'com.tmplayer.online.*' --tests '*MediaNameTest' --tests '*HomeContentTest' --tests '*HomeRowsTest' --tests '*SameTitleTest' --tests '*SeriesShelf*Test' --tests '*GarbageInputTest' :ui:jvmTest --tests '*ThemeTokensTest' --tests '*HomeViewModelCacheTest'
@@ -90,6 +96,11 @@ jobs:
           else
             ./gradlew :app:testDebugUnitTest --tests '*DiagnosticSessionTest' --tests '*GlassCards*Test' --tests '*PlayerExtras*Test' --tests '*FastScrollerRender*Test' --tests '*TvReach*Test'
           fi
+
+      - name: Check compact player layout and TV focus
+        if: steps.checks.outputs.player == 'true'
+        timeout-minutes: 10
+        run: ./gradlew :app:testDebugUnitTest --tests '*PlayerExtrasRow*Test'
 
       - name: Run unit tests
         if: steps.checks.outputs.focused != 'true'
@@ -117,6 +128,7 @@ jobs:
             core/build/reports/tests/
             ui/build/reports/tests/
             app/build/reports/tests/
+            app/build/device-test/review/extras-row-*.png
           retention-days: 14
           if-no-files-found: ignore
 

@@ -7,6 +7,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MediaNameTest {
+    @Test fun `RT signature is removed after channel and site decorations`() {
+        for (prefix in listOf("RT", "RT ", "RT_", "@EverMovies RT", "www.example.org - RT")) {
+            assertEquals(prefix, "Avarachan & Sons", parse(prefix + "Avarachan.&.Sons.2026.720p.mkv").title)
+        }
+        assertEquals("RTFM", parse("RTFM.2026.mkv").title)
+    }
+
     @Test fun `a one word channel prefix preserves every title word before the year`() {
         assertEquals("Quiet Hills", parse("@CC_Quiet_Hills_2020_1080p.mkv").title)
         assertEquals("Quiet Hills", parse("@TamilMob_LinkZz_Quiet_Hills_2020_1080p.mkv").title)

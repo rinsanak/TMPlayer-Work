@@ -373,6 +373,22 @@ abstract class PlayerExtrasRenderFixture {
         // From touch, which takes the window out of touch mode, so the focus circle is drawn as on a remote.
         focus?.let { assertTrue(activity.findViewById<View>(it).requestFocusFromTouch()) }
         idle(300)
+        fun bounds(id: Int) = Rect().also { activity.findViewById<View>(id).getGlobalVisibleRect(it) }
+        val bar = bounds(R.id.controls_timebar)
+        val transport = bounds(R.id.controls_center)
+        assertTrue("times and transport below seek bar", transport.top >= bar.bottom)
+        assertTrue("elapsed time before transport", bounds(R.id.times_position).right <= transport.left)
+        assertTrue("duration after transport", bounds(R.id.times_duration).left >= transport.right)
+        for (id in listOf(R.id.control_subtitles, R.id.control_audio, R.id.control_speed)) {
+            assertTrue("quick action at top beside More", bounds(id).bottom <= bounds(R.id.controls_topbar).bottom)
+        }
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.control_episodes).visibility)
+        val play = activity.findViewById<View>(R.id.center_play_pause)
+        assertTrue("compact transport", play.width <= 40 * activity.resources.displayMetrics.density)
+        if (tv) {
+            assertEquals(R.id.controls_timebar, play.nextFocusUpId)
+            assertEquals(R.id.control_subtitles, activity.findViewById<View>(R.id.controls_timebar).nextFocusUpId)
+        }
         drawWindow(activity, name)
         return requireNotNull(controls)
     }

@@ -15,6 +15,30 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WholeSeriesTest {
+    @Test fun `Continue detail single episode searches all seasons regardless of discovery size`() = runTest {
+        val chat = 81901L
+        val sparse = episode(chat, 1).copy(fileId = 0, mimeType = "")
+        val seed = requireNotNull(com.tmplayer.data.SeriesFill.seed(sparse))
+        val found = (1..6).flatMap { season -> (1..25).map { n ->
+            episode(chat, n).copy(messageId = if (season == 1) n.toLong() else season * 100L + n, fileId = season * 100 + n,
+                fileName = "Quiet Hills S%02dE%02d.mkv".format(season, n),
+                title = "Quiet Hills S%02dE%02d.mkv".format(season, n),
+                sizeBytes = if (n % 2 == 0) 80_000_000L else 800_000_000L)
+        } }
+        var page = 0
+        val whole = WholeSeries.read(seed, fetch = { source, query, _, _ ->
+            assertEquals(chat, source)
+            assertEquals("Quiet Hills", query)
+            val items = found.drop(page * 40).take(40)
+            page++
+            MediaPage(items, MediaCursors(video = page.toLong()), page * 40 >= found.size)
+        }, mergeDispatcher = StandardTestDispatcher(testScheduler))
+        assertEquals(150, whole.episodeCount)
+        assertEquals(6, whole.seasons.size)
+        assertEquals(25, whole.seasons.last().episodes.size)
+        assertTrue(whole.episodes.any { it.item.sizeBytes < 400_000_000L })
+    }
+
     @Test fun `Home includes small episodes and all later seasons`() = runTest {
         val chat = 81201L
         val opened = show(chat)

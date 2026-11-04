@@ -2215,14 +2215,13 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         val corner = findViewById<View>(R.id.top_right_stack)
         val root = findViewById<View>(R.id.player_root)
         val topBar = findViewById<View>(R.id.controls_topbar)
-        val phone = !FormFactor.isTv(this)
         val baseLeft = cluster.paddingLeft
         val baseRight = cluster.paddingRight
         val baseBottom = cluster.paddingBottom
         val barLeft = topBar.paddingLeft
         val barRight = topBar.paddingRight
-        // On a phone the top bar owns the top edge, so the corner chips sit under it.
-        val underTheBar = if (phone) (TOP_BAR_DP * resources.displayMetrics.density).toInt() else 0
+        // The controls occupy the top edge on both phone and TV.
+        val underTheBar = (TOP_BAR_DP * resources.displayMetrics.density).toInt()
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             val safe = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),

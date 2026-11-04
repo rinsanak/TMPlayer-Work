@@ -8,6 +8,16 @@ package com.tmplayer.data
  */
 object SeriesFill {
 
+    /** A resume record can open the episode detail without a loaded library series. */
+    fun seed(item: MediaItem): Series? {
+        val parsed = SeriesShelf.episodeOf(item)
+        val episode = parsed.episode ?: return null
+        val title = parsed.title.takeIf { it.isNotBlank() } ?: return null
+        val season = parsed.season ?: 1
+        return Series(SeriesShelf.keyOf(title), title,
+            listOf(SeriesSeason(season, listOf(SeriesEpisode(item, season, episode)))))
+    }
+
     /** Search pages read for one show at most: [PAGE] results each, a long show's worth. */
     const val MAX_PAGES = 8
 
@@ -26,7 +36,7 @@ object SeriesFill {
         if (found.isEmpty()) return series
         val own = series.episodes.flatMap { it.copies }
         val chats = own.mapTo(HashSet()) { it.chatId }
-        val pool = (own + found.filter { it.chatId in chats })
+        val pool = (found.filter { it.chatId in chats } + own)
             .distinctBy { it.id }
             .sortedWith(FeedMerge.newestFirst)
         val ids = own.mapTo(HashSet()) { it.id }

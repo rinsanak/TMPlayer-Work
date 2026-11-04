@@ -105,10 +105,18 @@ fun SeasonsSection(
     // The show as this page found it last time ([PageQueries]), so the seasons are drawn with the
     // page rather than arriving under it; worked out again behind, from what is known now.
     val seriesKey = com.tmplayer.data.QueryKey.SeriesOf(item.id)
-    val series by produceState(com.tmplayer.data.PageQueries.cache.data<Series>(seriesKey), item.id, known) {
+    val knownSeries by produceState(com.tmplayer.data.PageQueries.cache.data<Series>(seriesKey), item.id, known) {
         val found = withContext(Dispatchers.Default) { EpisodeGuide.seriesOf(item, KnownMedia.all()) }
         if (found != null) com.tmplayer.data.PageQueries.cache.put(seriesKey, found) else com.tmplayer.data.PageQueries.cache.remove { it == seriesKey }
         value = found
+    }
+    // Keep the search anchor stable as KnownMedia receives pages. Continue watching opens
+    // this episode detail, so it must run the same complete search as a series shelf card.
+    val seed = remember(item.id) { com.tmplayer.data.SeriesFill.seed(item) }
+    val filled = seed?.let { rememberWholeSeries(it) }
+    val series = remember(filled, knownSeries) {
+        if (filled != null && knownSeries != null) com.tmplayer.data.SeriesFill.combine(filled, knownSeries!!)
+        else filled ?: knownSeries
     }
     val today = remember { LocalDate.now().toString() }
     val seasons = remember(series, extras, today) {

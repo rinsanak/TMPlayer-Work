@@ -275,6 +275,32 @@ class PlayerControls(
         describeFromCatalog(root)
         setShape(VideoScale.Fit)
         if (!isTv) setUpPhone(root) else setUpTv(root)
+        listOf(topBar, center, times).forEach { it.visibility = View.VISIBLE }
+        listOf(clock, timeText, title, subtitle, root.findViewById<View>(R.id.control_tv_more))
+            .forEach { it.visibility = View.GONE }
+        wire(root.findViewById(R.id.control_back)) { onBack() }
+        val topMore = root.findViewById<View>(R.id.control_more)
+        wire(topMore) { onMore(topMore) }
+        val topButtons = root.findViewById<android.view.ViewGroup>(R.id.controls_buttons)
+        for (i in 0 until topButtons.childCount) {
+            topButtons.getChildAt(i).nextFocusUpId = View.NO_ID
+            topButtons.getChildAt(i).nextFocusDownId = R.id.controls_timebar
+        }
+        listOf(centerPrevious, centerPlay, centerNext).forEach {
+            it.nextFocusUpId = R.id.controls_timebar
+            it.nextFocusDownId = View.NO_ID
+        }
+        timeBar.nextFocusUpId = R.id.control_subtitles
+        if (isTv) {
+            timesDuration.isFocusable = true
+            timesDuration.setBackgroundResource(R.drawable.bg_tv_focus_pill)
+            timesDuration.setTextColor(ContextCompat.getColorStateList(root.context, R.color.player_control_icon))
+            wire(timesDuration) {
+                showRemaining = !showRemaining
+                onRemainingToggled(showRemaining)
+            }
+            tipOnFocus(topMore)
+        }
         cluster.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> cluster.post { arrangeTransport() } }
         arrangeTransport()
 
@@ -617,19 +643,15 @@ class PlayerControls(
      * layout the width is the screen's, less the row's padding.
      */
     private fun arrangeTransport() {
-        val row = timeText.parent as? android.widget.LinearLayout ?: return
-        val dock = cluster as? android.widget.LinearLayout ?: return
-        val wide = (cluster.width.takeIf { it > 0 } ?: cluster.resources.displayMetrics.widthPixels) /
-            cluster.resources.displayMetrics.density >= 600f
-        val parent = if (wide) row else dock
+        val parent = times as? android.widget.LinearLayout ?: return
         if (center.parent === parent) return
         val focused = center.findFocus()
         (center.parent as? android.view.ViewGroup)?.removeView(center)
         center.layoutParams = android.widget.LinearLayout.LayoutParams(
-            if (wide) android.view.ViewGroup.LayoutParams.WRAP_CONTENT else android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            (48 * cluster.resources.displayMetrics.density).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            (40 * cluster.resources.displayMetrics.density).toInt(),
         )
-        parent.addView(center, if (wide) 0 else dock.indexOfChild(timeBar) + 1)
+        parent.addView(center, 1)
         focused?.requestFocus()
     }
 
@@ -764,7 +786,7 @@ class PlayerControls(
      */
     fun isOnChrome(rawX: Float, rawY: Float): Boolean {
         if (!visible) return false
-        val views = if (isTv) listOf(cluster) else listOf(topBar, center, cluster)
+        val views = listOf(topBar, cluster)
         val at = IntArray(2)
         return views.any { view ->
             if (view.visibility != View.VISIBLE) return@any false
@@ -777,15 +799,12 @@ class PlayerControls(
     private var detail = ""
 
     fun setTitle(name: String, detail: String) {
-        val tv = isTv
         this.detail = detail
         topTitle.text = name
         topSubtitle.text = detail
         topSubtitle.visibility = if (detail.isBlank()) View.GONE else View.VISIBLE
-        if (!tv) return
-        title.text = name
-        title.visibility = if (name.isBlank()) View.GONE else View.VISIBLE
-        showDetail(detail)
+        title.visibility = View.GONE
+        subtitle.visibility = View.GONE
     }
 
     private fun showDetail(text: String) {
@@ -823,12 +842,9 @@ class PlayerControls(
         centerNextCaption.visibility = View.GONE
     }
 
-    /**
-     * Shows the Episodes button for a video the chat has placed in a series, and takes it away
-     * otherwise: a film has no list to open.
-     */
-    fun setEpisodesAvailable(available: Boolean) {
-        val wanted = if (available) View.VISIBLE else View.GONE
+    /** Episode browsing stays on the detail page rather than covering the player. */
+    fun setEpisodesAvailable(@Suppress("UNUSED_PARAMETER") available: Boolean) {
+        val wanted = View.GONE
         if (episodesButton.visibility == wanted) return
         // Leaving the button the remote stands on would drop focus on the floor: back to the row.
         val hadFocus = episodesButton.hasFocus()

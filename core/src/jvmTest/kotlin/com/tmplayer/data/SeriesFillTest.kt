@@ -6,6 +6,14 @@ import org.junit.Test
 
 /** A show's page made whole from a search of its chat. */
 class SeriesFillTest {
+    @Test fun `resume seed is hydrated by fetched copy with the same message id`() {
+        val full = episode(1, 1)
+        val seed = requireNotNull(SeriesFill.seed(full.copy(fileId = 0, mimeType = "")))
+        val result = SeriesFill.merge(seed, listOf(full, episode(1, 2)))
+        assertEquals(2, result.episodeCount)
+        assertEquals(full.fileId, result.episodes.first().item.fileId)
+    }
+
     @Test fun `canonical alias changes keep the opened show and its missing episodes`() {
         val opened = show(listOf(episode(1, 1, "Quiet Hills Extended"), episode(1, 2, "Quiet Hills Extended")))
         val found = (1..4).map { episode(1, it, "Quiet Hills").copy(messageId = 200L + it, fileId = 200 + it) }
