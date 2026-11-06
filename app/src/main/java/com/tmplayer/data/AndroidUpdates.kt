@@ -54,7 +54,9 @@ suspend fun Updates.downloadAndInstall(context: Context, release: Release) {
     }
     // Android 12's session keeps the popup up, saying it is installing; before that the system
     // installer's screen takes over and the popup closes on Ready.
-    val session = !FormFactor.isTv(context) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    // Pass every downloaded APK to the device's own installer. Some TVs cannot open Android's
+    // per-app unknown-sources Settings screen, and phones/tablets should follow the same path.
+    val session = false
     val file = download(release, File(context.cacheDir, "updates"), installing = session) ?: return
     when (val result = SelfInstaller.install(context, file, release, foreground = true)) {
         // The process usually ends before this; if not, the restart notice still follows.
@@ -73,10 +75,8 @@ fun Updates.workPausedByInstall(): Boolean =
 /** Whether the device will let TMPlayer hand an APK to the installer at all. */
 @Suppress("UnusedReceiverParameter")
 fun Updates.canInstall(context: Context): Boolean =
-    // Before Android 8 there is no per-app permission, only the one "unknown sources" switch, and
-    // the system's installer asks for that itself when the APK is handed over.
-    android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O ||
-        context.packageManager.canRequestPackageInstalls()
+    // Do not send users to Settings. The system installer handles any device-specific permission.
+    true
 
 /**
  * The system screen where "allow apps from this source" is turned on.

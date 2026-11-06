@@ -152,40 +152,20 @@ object SelfInstaller {
         }
         apk!!
 
-        if (FormFactor.isTv(app) || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            // Nobody to answer the system installer's screen: the automatic install is 12+ only.
-            if (!foreground) {
-                file.delete()
-                return Result.NeedsViewer
-            }
-            runBeforeInstall()
-            remember(settings, release, session = false, foreground = true)
-            return runCatching {
-                app.startActivity(viewIntent(app, file))
-                Result.HandedOver
-            }.getOrElse {
-                forget(settings)
-                Result.Failed(UpdateWords.NO_INSTALLER)
-            }
-        }
-
-        val silent = silentAllowed(app, apk.packageName, apk.targetSdk)
-        if (!silent && !foreground) {
+        // Always hand the APK to the device's default installer, including on phones and tablets.
+        if (!foreground) {
             file.delete()
             return Result.NeedsViewer
         }
         runBeforeInstall()
-        remember(settings, release, session = true, foreground = foreground)
-        val result = sessionInstall(app, file, silent, foreground, settings)
-        when (result) {
-            Result.Installed -> file.delete()
-            Result.HandedOver -> Unit
-            else -> {
-                forget(settings)
-                file.delete()
-            }
+        remember(settings, release, session = false, foreground = true)
+        return runCatching {
+            app.startActivity(viewIntent(app, file))
+            Result.HandedOver
+        }.getOrElse {
+            forget(settings)
+            Result.Failed(UpdateWords.NO_INSTALLER)
         }
-        return result
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
