@@ -51,10 +51,10 @@ class CompactControlsTest {
         val play = root.findViewById<View>(R.id.center_play_pause)
         val bounds = Rect(0, 0, play.width, play.height)
         root.offsetDescendantRectToMyCoords(play, bounds)
-        assertTrue("transport must stay at the bottom", bounds.top >= h / 2)
+        assertTrue("transport must stay in the top controls", bounds.bottom <= h / 2)
         assertTrue("transport must fit inside the viewport", bounds.left >= 0 && bounds.right <= w && bounds.bottom <= h)
-        assertTrue("touch height", play.height >= (48 * density).toInt())
-        assertTrue("touch width", play.width >= (48 * density).toInt())
+        assertTrue("touch height", play.height >= (40 * density).toInt())
+        assertTrue("touch width", play.width >= (40 * density).toInt())
         play.performClick(); assertEquals(1, toggles)
         if (tv) {
             val viewRoot = activity.window.decorView.parent

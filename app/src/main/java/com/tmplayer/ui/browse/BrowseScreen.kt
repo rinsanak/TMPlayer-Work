@@ -388,6 +388,7 @@ internal fun BrowseScreen(
     LaunchedEffect(searchConnected) { if (searchConnected) search.reconnected() }
     val panelScope = rememberCoroutineScope()
     val panelContext = LocalContext.current
+    val recentPlayed by remember(panelContext) { SettingsStore(panelContext).recentPlayed }.collectAsState(initial = emptyList())
     // A hold, the info key or a right click: the quick menu, which leads to the page by Details.
     var held by remember { mutableStateOf<Pair<MediaItem, String>?>(null) }
     val holdMedia: (MediaItem, String) -> Unit = { item, title -> held = item to title }
@@ -655,6 +656,7 @@ internal fun BrowseScreen(
                             HomePane(
                                 rows = homeRows,
                                 lastPlayed = com.tmplayer.data.HomeResume.latest(continueWatching),
+                                recentHistory = com.tmplayer.data.HomeResume.recent(recentPlayed + continueWatching, watchedHistory),
                                 onContinue = onResumeMedia,
                                 onLastArtWanted = onHomeLastArtWanted,
                                 rowsReady = homeRowsReady,

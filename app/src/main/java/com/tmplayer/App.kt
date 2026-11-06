@@ -269,6 +269,7 @@ class App : Application() {
             // Back in view: TDLib reopens a line it lost in the background at once (Td).
             Td.onForegroundChanged(true)
             com.tmplayer.data.ResumeSync.syncSoon(SettingsStore(activity.applicationContext), 0L)
+            com.tmplayer.data.AccountSettingsSync.start(activity.applicationContext)
         }
 
         override fun onActivityStopped(activity: android.app.Activity) {

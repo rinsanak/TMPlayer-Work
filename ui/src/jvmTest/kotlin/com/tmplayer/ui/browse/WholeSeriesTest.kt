@@ -15,6 +15,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WholeSeriesTest {
+    @Test fun `Recent topic card discovers seasons in every topic of its source chat`() = runTest {
+        val chat = 983320L
+        val seed = requireNotNull(com.tmplayer.data.SeriesFill.seed(episode(chat, 1).copy(topicId = 42)))
+        val nextSeason = episode(chat, 201).copy(title = "Quiet Hills S06E01.mkv", fileName = "Quiet Hills S06E01.mkv", topicId = 88)
+        val whole = WholeSeries.read(seed, fetch = { source, _, _, topic ->
+            assertEquals(chat, source)
+            assertEquals("the topic attached to the Home seed must not hide other seasons", 0, topic)
+            MediaPage(listOf(nextSeason), MediaCursors(), true)
+        }, mergeDispatcher = StandardTestDispatcher(testScheduler))
+        assertEquals(listOf(1, 6), whole.seasons.map { it.number })
+    }
     @Test fun `player gets next episode from complete series even beyond old search budget`() = runTest {
         val chat = 82901L
         val current = episode(chat, 1)

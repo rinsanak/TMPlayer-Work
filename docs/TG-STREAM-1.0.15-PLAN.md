@@ -1,0 +1,11 @@
+# Scope and decisions
+
+User requested all settings and API keys to sync without a password or pairing code, seven last-played titles with automatic and manual watched status, complete seasons from Recent, device-native APK installation and TV Home startup repair. Same Telegram account is required. Saved Messages stores cloud journals; this is disclosed in Settings. No new hosting or external account is introduced.
+
+# Progress / handoff
+
+Implemented per-device/per-field cloud journals with deterministic conflict resolution, deletion records, multipart checksums and commit manifests. Private local journals and Gemini keys use Android Keystore encryption. Incoming preferences are allowlisted and typed. File IDs are normalised rather than copied between TDLib sessions. Recent-play retention is seven distinct titles and survives completion; clear-history records propagate across devices. Resume saves no longer discard the first three minutes or mark 90 percent as completed in TG Stream. The foreground sync loop keeps Saved Messages open to receive changes, polls resume every two seconds and settings every eight seconds with backoff on failures.
+
+Recent series expansion now searches the entire source chat instead of only the source topic. TV Home shows library placeholders while its rows load. APK updates use the native system installer on every device. Existing signature validation remains in place; Android source-install policy still applies.
+
+Focused checks configured in the existing CI: account merge/deletion/type round trips, cloud import security/local encryption, recent seven/grouping/completion, full-chat season discovery, cache regression, native installer intent and TV Continue rendering. Previous CompactControls expectations were updated for the existing top compact transport. Local diff/JSON/version checks are the available local validation; this environment has no Android SDK or Gradle dependency cache. CI and signing results are pending. Stop monitoring after the GitHub APK build starts, per user instruction. No device or two-device live testing has been performed.

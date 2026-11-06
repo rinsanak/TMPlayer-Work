@@ -4148,6 +4148,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
             watchTogether.changed()
+            if (!playWhenReady) saveResumePosition()
             // Heard here before Media3's notification hears it: a pause lets the service out of
             // the foreground at once, so the paused notification can be swiped away.
             if (inBackgroundAudio) PlaybackService.setPlayWhenReady(playWhenReady)
@@ -8917,6 +8918,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         val forget = watched || markedWatchedHere
         val write = App.backgroundScope.launch {
             runCatching {
+                store.noteRecentPlay(chat, message, position, duration, description)
                 if (forget) store.clearResumePosition(chat, message, here)
                 else store.saveResumePosition(chat, message, position, duration, description)
                 com.tmplayer.data.ResumeSync.pushSoon(store)
@@ -9165,7 +9167,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         /** How long the unlock pill stays up after a tap on the locked screen. */
         private const val UNLOCK_PILL_MS = 2_500L
 
-        private const val RESUME_TICK_MS = 10_000L
+        private const val RESUME_TICK_MS = 3_000L
 
         /** A saved position shorter than this is not worth a "Start over". */
         private const val RESUME_OFFER_MIN_MS = 15_000L

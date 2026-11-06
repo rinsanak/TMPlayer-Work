@@ -128,6 +128,7 @@ import androidx.compose.ui.draw.drawBehind
 internal fun HomePane(
     rows: List<HomeRow>,
     lastPlayed: ResumeRecord? = null,
+    recentHistory: List<ResumeRecord> = emptyList(),
     onContinue: (ResumeRecord) -> Unit = {},
     onLastArtWanted: (ResumeRecord) -> Unit = {},
     watch: SeriesWatch,
@@ -192,7 +193,7 @@ internal fun HomePane(
     val touch = isTouch()
     // On a phone the page runs up under the status bar (see LocalUnderStatusBar).
     val under = if (touch) LocalUnderStatusBar.current else 0.dp
-    if (rows.isEmpty() && allOff && lastPlayed == null) {
+    if (rows.isEmpty() && allOff && lastPlayed == null && recentHistory.isEmpty()) {
         LaunchedEffect(Unit) { HomeFirstPaint.markReady() }
         val focus = remember { FocusRequester() }
         Column(Modifier.fillMaxSize().padding(top = under)) {
@@ -212,7 +213,7 @@ internal fun HomePane(
         if (!touch) LaunchedEffect(Unit) { if (mayTakeFocus()) runCatching { focus.requestFocus() } }
         return
     }
-    if (rows.isEmpty() && lastPlayed == null) {
+    if (rows.isEmpty() && lastPlayed == null && recentHistory.isEmpty()) {
         LaunchedEffect(Unit) { HomeFirstPaint.markReady() }
         // Rows still being built: the page's heading over a blank page, not the first run's card.
         // A list of the chats' videos that never comes back gives way to the card after a while,
@@ -265,7 +266,10 @@ internal fun HomePane(
     // unless Settings turned the row off and kept the carousel it feeds. Its "no chosen chats"
     // line shows either way, so the carousel's empty place is explained.
     var selectedArtwork by remember { mutableStateOf<MediaItem?>(null) }
-    val listed = remember(rows) { rows.filter { it !is HomeRow.Recent || it.asRow || it.noneChosen } }
+    val listed = remember(rows, recentHistory) {
+        val history = if (recentHistory.isEmpty()) emptyList() else listOf(HomeRow.Continue(recentHistory, emptyList()))
+        history + rows.filter { it !is HomeRow.Continue && (it !is HomeRow.Recent || it.asRow || it.noneChosen) }
+    }
     val first = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     // Kept across a turn of the phone: the show is looked up again in the rows once they are back.
@@ -596,6 +600,14 @@ internal fun HomePane(
                         PhoneHomeBrand(Modifier.padding(start = start, top = BRAND_TOP, bottom = 4.dp), onArt = false)
                     }
                 }
+                if (listed.none { it !is HomeRow.Continue } && !rowsReady) {
+                    item(key = "home-loading-library") {
+                        Column {
+                            RowHeading(s.homeRowRecentAll, start = start, end = end, seeAll = null)
+                            PlaceholderRow(start, poster = true)
+                        }
+                    }
+                }
                 items(listed, key = { it.key }, contentType = { it::class }) { row ->
                     val loaded = row.isLoaded
                     // Asked for whenever the row comes on screen: the model fetches it the first
@@ -615,7 +627,7 @@ internal fun HomePane(
                     // video lands, as a television's rows end (user, 2026-10-28); a phone keeps it
                     // on the heading. On the heading it took a press of its own, Up or Right, and
                     // Up stopping there made going up two presses a row.
-                    val seeAllEnd = if (touch || seeAll == null) null else SeeAllEnd(seeAll, poster = row is HomeRow.Recent || row is HomeRow.Chat)
+                    val seeAllEnd = if (touch || seeAll == null) null else SeeAllEnd(seeAll, poster = row is HomeRow.Recent || row is HomeRow.Chat || row is HomeRow.Continue)
                     // This row's tiles, for the remote to be put back into: back from its See all
                     // page, or from the player.
                     val tilesFocus = remember { FocusRequester() }
@@ -644,11 +656,18 @@ internal fun HomePane(
                             seeAll = seeAll.takeIf { touch },
                         )
                         if (!loaded) {
-                            PlaceholderRow(start, poster = row is HomeRow.Recent || row is HomeRow.Chat)
+                            PlaceholderRow(start, poster = row is HomeRow.Recent || row is HomeRow.Chat || row is HomeRow.Continue)
                             return@Column
                         }
                         when (row) {
-                            is HomeRow.Continue -> Unit
+                            is HomeRow.Continue -> {
+                                val entries = row.records.map { record ->
+                                    LaunchedEffect(record.chatId, record.messageId) { onLastArtWanted(record) }
+                                    val item = art[SettingsStore.progressKey(record.chatId, record.messageId)] ?: record.toMediaItem()
+                                    com.tmplayer.data.SeriesFill.seed(item)?.let { ShelfEntry.Show(it) } ?: ShelfEntry.File(item)
+                                }
+                                ShelfRows(entries, watch, touch, isFirst, first, chatTitle, onPlay, onHoldMedia, start, end, rowTiles) { opened.open(it) }
+                            }
                             is HomeRow.WatchLater -> TileRow(start, end, rowTiles, seeAll = seeAllEnd?.copy(width = wideWidth(touch))) {
                                 items(row.records, key = { "l-${it.id}" }) { record ->
                                     LaunchedEffect(record.key) { onLaterArtWanted(record) }

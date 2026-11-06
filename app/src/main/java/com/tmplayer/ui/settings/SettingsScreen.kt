@@ -1252,7 +1252,7 @@ fun SettingsScreen(
                 item {
                     ToggleRow(
                         title = s.settingsResumeSync,
-                        subtitle = if (resumeSync) s.settingsResumeSyncOn else s.settingsResumeSyncOff,
+                        subtitle = com.tmplayer.data.AccountSettingsSync.error.collectAsStateWithLifecycle().value ?: if (resumeSync) s.settingsResumeSyncOn else s.settingsResumeSyncOff,
                         icon = TmIcons.History,
                         checked = resumeSync,
                         onToggle = {

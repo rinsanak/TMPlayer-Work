@@ -52,8 +52,6 @@ suspend fun Updates.downloadAndInstall(context: Context, release: Release) {
         refuse(SelfInstaller.spaceWords(context, size))
         return
     }
-    // Android 12's session keeps the popup up, saying it is installing; before that the system
-    // installer's screen takes over and the popup closes on Ready.
     // Pass every downloaded APK to the device's own installer. Some TVs cannot open Android's
     // per-app unknown-sources Settings screen, and phones/tablets should follow the same path.
     val session = false

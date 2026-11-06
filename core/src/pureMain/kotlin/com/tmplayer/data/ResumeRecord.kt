@@ -255,6 +255,7 @@ object ResumeRules {
 
     /** Whether [positionMs] is a resume point worth writing down. */
     fun keeps(positionMs: Long, durationMs: Long): Boolean {
+        if (TgStreamUi.active) return positionMs >= 1000 && (durationMs <= 0 || positionMs < durationMs - 2000)
         if (positionMs < MIN_POSITION_MS) return false
         if (durationMs <= 0) return true
         return positionMs < durationMs * (1 - END_FRACTION)
@@ -262,5 +263,5 @@ object ResumeRules {
 
     /** Whether playback at [positionMs] has seen enough of the video to call it watched. */
     fun watched(positionMs: Long, durationMs: Long): Boolean =
-        durationMs > 0 && positionMs >= durationMs * WATCHED_FRACTION
+        durationMs > 0 && (if (TgStreamUi.active) positionMs >= durationMs - 2000 else positionMs >= durationMs * WATCHED_FRACTION)
 }

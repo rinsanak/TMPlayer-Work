@@ -150,6 +150,17 @@ class WatchedStore(private val store: DataStore<Preferences>) {
     }
 
     /** Every stored mark under its stored name, for [Backups]. */
+    /** Apply explicitly changed cloud values, including deletions, in one transaction. */
+    suspend fun applyAccountValues(values: Map<String, Any?>) {
+        store.edit { target ->
+            for ((name, value) in values) {
+                if (value == null) target.asMap().keys.firstOrNull { it.name == name }?.let { target.remove(it) }
+                else target.putRaw(name, value)
+            }
+            evictOldest(target)
+        }
+    }
+
     suspend fun rawEntries(): Map<String, Any> = store.data.first().asMap().mapKeys { it.key.name }
 
     /**

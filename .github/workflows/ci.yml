@@ -57,7 +57,11 @@ jobs:
       - name: Select focused release checks
         id: checks
         run: |
-          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.12 ]; then
+          if [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.15 ]; then
+            echo "focused=true" >> "$GITHUB_OUTPUT"
+            echo "data=true" >> "$GITHUB_OUTPUT"
+            echo "account=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_NAME" = tg-stream-rebrand ] && [ "$(cat .github/tg-stream-build-request)" = v1.0.12 ]; then
             echo "focused=true" >> "$GITHUB_OUTPUT"
             echo "data=true" >> "$GITHUB_OUTPUT"
             echo "home=true" >> "$GITHUB_OUTPUT"
@@ -76,7 +80,9 @@ jobs:
 
       - name: Run core and ui tests
         run: |
-          if [ "${{ steps.checks.outputs.home }}" = true ]; then
+          if [ "${{ steps.checks.outputs.account }}" = true ]; then
+            ./gradlew :core:jvmTest --tests '*AccountSyncDocTest' --tests '*HomeResumeTest' --tests '*ResumeRulesTest' --tests '*ResumeSyncDocTest' --tests '*BackupCoverageTest' --tests '*HomeRowsTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
+          elif [ "${{ steps.checks.outputs.home }}" = true ]; then
             ./gradlew :core:jvmTest --tests '*HomeRowsTest' --tests '*HomeContentTest'
           elif [ "${{ steps.checks.outputs.player }}" = true ]; then
             ./gradlew :core:jvmTest --tests '*HomeResumeTest' --tests '*WatchSyncTest'
@@ -104,6 +110,11 @@ jobs:
           else
             ./gradlew :app:testDebugUnitTest --tests '*DiagnosticSessionTest' --tests '*GlassCards*Test' --tests '*PlayerExtras*Test' --tests '*FastScrollerRender*Test' --tests '*TvReach*Test'
           fi
+
+      - name: Check account sync storage, installer and Continue Home
+        if: steps.checks.outputs.account == 'true'
+        timeout-minutes: 12
+        run: ./gradlew :app:testDebugUnitTest --tests '*AccountSettingsSyncTest' --tests '*SystemInstallerTest' --tests '*ContinueHomeTest' --tests '*CompactControlsTest'
 
       - name: Check TV Home artwork and phone regression
         if: steps.checks.outputs.home == 'true'
@@ -141,6 +152,7 @@ jobs:
             core/build/reports/tests/
             ui/build/reports/tests/
             app/build/reports/tests/
+            build/device-test/review/
           retention-days: 14
           if-no-files-found: ignore
 

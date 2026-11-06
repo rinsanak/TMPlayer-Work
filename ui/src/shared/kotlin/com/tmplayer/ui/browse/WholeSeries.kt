@@ -58,7 +58,7 @@ object WholeSeries {
         val query = SeriesFill.queryOf(series) ?: return series
         var whole = peek(series) ?: series
         onPage(whole)
-        val sources = whole.episodes.flatMap { it.copies }.map { it.chatId to it.topicId }.distinct()
+        val sources = whole.episodes.flatMap { it.copies }.map { it.chatId to 0 }.distinct()
 
         // Draw each answer as it arrives. Slow later pages must not hide usable episodes,
         // and closing the page cancels the read while retaining the answers already drawn.

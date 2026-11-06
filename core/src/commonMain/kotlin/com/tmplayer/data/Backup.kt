@@ -126,6 +126,7 @@ object Backups {
      */
     val SETTINGS: Map<String, Kind> = mapOf(
         "dialog_boost" to Kind.BOOL,
+        "recent_history_cleared" to Kind.LONG,
         "accent" to Kind.TEXT,
         "accent_custom" to Kind.LONG,
         "app_typeface" to Kind.TEXT,
@@ -220,6 +221,7 @@ object Backups {
      * adding its prefix here.
      */
     val MEMORY: Map<String, Kind> = mapOf(
+        "recent_play_" to Kind.TEXT,
         "audio_" to Kind.TEXT,
         "text_" to Kind.TEXT,
         "subs_" to Kind.BOOL,

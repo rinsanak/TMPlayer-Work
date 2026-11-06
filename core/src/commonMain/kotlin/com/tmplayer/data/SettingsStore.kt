@@ -2498,6 +2498,33 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
      * Entries without a stored description are skipped rather than guessed at: there is no title to
      * put on the card.
      */
+    /** Last played titles survive completion; manual Watched changes do not reorder them. */
+    val recentPlayed: Flow<List<ResumeRecord>> = read { prefs ->
+        prefs.asMap().mapNotNull { (key, value) ->
+            val ids = key.name.takeIf { it.startsWith("recent_play_") }?.removePrefix("recent_play_") ?: return@mapNotNull null
+            val fields = (value as? String)?.split('\n', limit = 3) ?: return@mapNotNull null
+            if (fields.size != 3) return@mapNotNull null
+            ResumeRecord.decode(ids, fields[2], fields[0].toLongOrNull() ?: return@mapNotNull null,
+                fields[1].toLongOrNull() ?: return@mapNotNull null)
+        }.filter { KidsLock.allows(allowedChatsOf(prefs), it.chatId) }.sortedByDescending { it.updatedAt }
+    }
+
+    suspend fun noteRecentPlay(chat: Long, message: Long, position: Long, duration: Long, description: String) {
+        if (position < 1000) return
+        prefs.edit { target ->
+            target[stringPreferencesKey("recent_play_${chat}_${message}")] = "$position\n${duration.coerceAtLeast(0)}\n$description"
+            val records = target.asMap().mapNotNull { (key, value) ->
+                if (!key.name.startsWith("recent_play_")) return@mapNotNull null
+                val parts = (value as? String)?.split('\n', limit = 3) ?: return@mapNotNull null
+                val record = if (parts.size == 3) ResumeRecord.decode(key.name.removePrefix("recent_play_"), parts[2], parts[0].toLongOrNull() ?: 0, parts[1].toLongOrNull() ?: 0) else null
+                record?.let { key.name to it }
+            }.sortedByDescending { it.second.updatedAt }
+            val seen = HashSet<String>()
+            val keep = records.filter { seen.add(HomeContent.identity(it.second.toMediaItem())) }.take(7).mapTo(HashSet()) { it.first }
+            target.asMap().keys.filter { it.name.startsWith("recent_play_") && it.name !in keep }.forEach { target.remove(it) }
+        }
+    }
+
     val continueWatching: Flow<List<ResumeRecord>> = read { prefs ->
         // The kids lock reads its chats off the same map, so the row can never be drawn for a
         // moment with the lock and the records out of step.
@@ -2667,7 +2694,7 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
             // In the first three minutes there is nothing new worth resuming, but a place saved
             // before stands: reopening a film and closing it again, or a beat that lands before
             // the resume seek, must not wipe it. Starting over clears it on purpose instead.
-            if (positionMs < ResumeRules.MIN_POSITION_MS) return@edit
+            if (positionMs < if (TgStreamUi.active) 1000L else ResumeRules.MIN_POSITION_MS) return@edit
             // In the credits: there is nothing worth resuming.
             if (!ResumeRules.keeps(positionMs, durationMs)) {
                 val played = recordOf(prefs, chatId, messageId, description)?.toMediaItem()
@@ -2749,10 +2776,11 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
         prefs.edit { prefs ->
             val doomed = prefs.asMap().keys.filter { key ->
                 val name = key.name
-                name.startsWith("resume_") || name.startsWith("duration_") || name.startsWith("meta_") ||
+                name.startsWith("recent_play_") || name.startsWith("resume_") || name.startsWith("duration_") || name.startsWith("meta_") ||
                     name.startsWith("delay_")
             }
             for (key in doomed) prefs.remove(key)
+            prefs[longPreferencesKey("recent_history_cleared")] = System.currentTimeMillis()
         }
     }
 
@@ -2797,6 +2825,17 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
     // ---- backup -----------------------------------------------------------------------------
 
     /** Every stored value under its stored name, for [Backups.collect] and [Backups.plan]. */
+    /** Apply explicitly changed cloud values, including deletions, in one transaction. */
+    suspend fun applyAccountValues(values: Map<String, Any?>) {
+        prefs.edit { target ->
+            for ((name, value) in values) {
+                if (value == null) target.asMap().keys.firstOrNull { it.name == name }?.let { target.remove(it) }
+                else target.putRaw(name, value)
+            }
+            evictOldestHistory(target)
+        }
+    }
+
     suspend fun rawEntries(): Map<String, Any> = prefs.data.first().asMap().mapKeys { it.key.name }
 
     /**

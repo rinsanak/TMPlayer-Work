@@ -306,13 +306,13 @@ object SelfInstaller {
     }
 
     /** The system installer's screen, for Android 6 to 11 and a session that died. */
-    private fun viewIntent(context: Context, file: File): Intent {
+    internal fun viewIntent(context: Context, file: File): Intent {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
         val intent = Intent(Intent.ACTION_VIEW)
             .setDataAndType(uri, "application/vnd.android.package-archive")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (FormFactor.isTv(context)) {
-            // A TV can ship its own installer. Prefer its system handler rather than a
+        run {
+            // Every device can ship its own installer. Prefer its system handler rather than a
             // downloaded file manager or our PackageInstaller session.
             val system = context.packageManager.queryIntentActivities(intent, 0).mapNotNull { it.activityInfo }
                 .filter { it.exported && it.applicationInfo.flags and (android.content.pm.ApplicationInfo.FLAG_SYSTEM or android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0 }
