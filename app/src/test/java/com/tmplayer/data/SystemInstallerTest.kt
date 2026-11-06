@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -13,6 +14,11 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class SystemInstallerTest {
+    @Before fun resetProviderPathCache() {
+        // Robolectric gives each test a new data directory but FileProvider caches by authority.
+        org.robolectric.util.ReflectionHelpers.getStaticField<MutableMap<String, Any>>(
+            androidx.core.content.FileProvider::class.java, "sCache").clear()
+    }
     private fun check(tv: Boolean) {
         val app = ApplicationProvider.getApplicationContext<Context>()
         val file = File(app.cacheDir, "updates/test-update.apk").apply { parentFile.mkdirs(); writeText("test") }

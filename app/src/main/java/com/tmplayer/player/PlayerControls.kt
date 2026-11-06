@@ -285,6 +285,8 @@ class PlayerControls(
         }
         timeBar.nextFocusUpId = R.id.center_play_pause
         if (isTv) {
+            timeBar.nextFocusDownId = R.id.times_duration
+            timesDuration.nextFocusUpId = R.id.controls_timebar
             timesDuration.isFocusable = true
             timesDuration.setBackgroundResource(R.drawable.bg_tv_focus_pill)
             timesDuration.setTextColor(ContextCompat.getColorStateList(root.context, R.color.player_control_icon))

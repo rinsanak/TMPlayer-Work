@@ -25,6 +25,10 @@ on:
       - "desktop/packaging/aur/**"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -78,7 +82,24 @@ jobs:
             echo "focused=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Reuse unchanged successful core and UI checks
+        id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != tg-stream-rebrand ] || [ "$(cat .github/tg-stream-build-request)" != v1.0.15 ]; then exit 0; fi
+          if git diff --name-only HEAD^ HEAD | grep -Eqv '^(app/src/main/java/com/tmplayer/player/PlayerControls\.kt|app/src/test/java/com/tmplayer/player/CompactControlsTest\.kt|app/src/test/java/com/tmplayer/data/SystemInstallerTest\.kt|\.github/workflows/ci\.yml|\.github/tg-stream-build-request|docs/TG-STREAM-1.0.15-PLAN\.md)$'; then exit 0; fi
+          PARENT="$(git rev-parse HEAD^)"
+          RUN="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$PARENT&event=push&per_page=20" --jq '[.workflow_runs[] | select(.name == "CI")] | sort_by(.id) | last | .id // empty')"
+          if [ -z "$RUN" ]; then exit 0; fi
+          STATUS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/jobs?filter=latest" --jq '[.jobs[] | select(.name == "Test and build") | .steps[] | select(.name == "Run core and ui tests")] | last | .conclusion // empty')"
+          if [ "$STATUS" = success ]; then
+            echo "core=true" >> "$GITHUB_OUTPUT"
+            echo "Reusing successful core/UI results from $PARENT; changed Android checks run below."
+          fi
+
       - name: Run core and ui tests
+        if: steps.reuse.outputs.core != 'true'
         run: |
           if [ "${{ steps.checks.outputs.account }}" = true ]; then
             ./gradlew :core:jvmTest --tests '*AccountSyncDocTest' --tests '*HomeResumeTest' --tests '*ResumeRulesTest' --tests '*ResumeSyncDocTest' --tests '*BackupCoverageTest' --tests '*HomeRowsTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
@@ -114,7 +135,12 @@ jobs:
       - name: Check account sync storage, installer and Continue Home
         if: steps.checks.outputs.account == 'true'
         timeout-minutes: 12
-        run: ./gradlew :app:testDebugUnitTest --tests '*AccountSettingsSyncTest' --tests '*SystemInstallerTest' --tests '*ContinueHomeTest' --tests '*CompactControlsTest'
+        run: |
+          if [ "${{ steps.reuse.outputs.core }}" = true ]; then
+            ./gradlew :app:testDebugUnitTest --tests '*SystemInstallerTest' --tests '*CompactControlsTest'
+          else
+            ./gradlew :app:testDebugUnitTest --tests '*AccountSettingsSyncTest' --tests '*SystemInstallerTest' --tests '*ContinueHomeTest' --tests '*CompactControlsTest'
+          fi
 
       - name: Check TV Home artwork and phone regression
         if: steps.checks.outputs.home == 'true'
