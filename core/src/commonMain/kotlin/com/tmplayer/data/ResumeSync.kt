@@ -174,8 +174,8 @@ object ResumeSync {
     }
 
     private const val TAG = "ResumeSync"
-    private const val START_DELAY_MS = 8_000L
-    private const val PUSH_SETTLE_MS = 20_000L
+    private const val START_DELAY_MS = 1_000L
+    private const val PUSH_SETTLE_MS = 1_000L
     private const val PULL_TIMEOUT_MS = 2_500L
     private const val SEARCH_LIMIT = 5
     private const val HISTORY_LIMIT = 30

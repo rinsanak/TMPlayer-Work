@@ -878,7 +878,7 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
      * own Saved Messages, edited in place, so another device signed in to the same account picks
      * up where this one stopped. Off until turned on in Settings.
      */
-    val resumeSync: Flow<Boolean> = read { it[RESUME_SYNC] ?: false }
+    val resumeSync: Flow<Boolean> = read { it[RESUME_SYNC] ?: TgStreamUi.active }
 
     suspend fun setResumeSync(value: Boolean) {
         prefs.edit {
@@ -892,7 +892,7 @@ class SettingsStore(private val prefs: DataStore<Preferences>) : AllowedChatsSou
         }
     }
 
-    suspend fun resumeSyncNow(): Boolean = prefs.data.first()[RESUME_SYNC] ?: false
+    suspend fun resumeSyncNow(): Boolean = prefs.data.first()[RESUME_SYNC] ?: TgStreamUi.active
 
     /** The Saved Messages message the places are kept in, once found or sent; 0 before. */
     suspend fun resumeSyncMessageNow(): Long = prefs.data.first()[RESUME_SYNC_MESSAGE] ?: 0L

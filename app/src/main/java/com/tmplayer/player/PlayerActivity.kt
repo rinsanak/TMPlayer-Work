@@ -8919,6 +8919,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             runCatching {
                 if (forget) store.clearResumePosition(chat, message, here)
                 else store.saveResumePosition(chat, message, position, duration, description)
+                com.tmplayer.data.ResumeSync.pushSoon(store)
             }
         }
         if (leaving) publishWatchNext(if (markedWatchedHere && duration > 0) duration else position, duration)
