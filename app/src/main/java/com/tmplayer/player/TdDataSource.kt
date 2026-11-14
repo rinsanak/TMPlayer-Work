@@ -106,6 +106,7 @@ class TdDataSource(td: TdlClient) : BaseDataSource(true) {
         bytes.watch(fileId)
 
         val size = blocking(OPEN_TIMEOUT_MS) { bytes.lookUp() }
+        com.tmplayer.data.DiagnosticSession.event("SOURCE_LOOKUP", "elapsedMs=${SystemClock.elapsedRealtime() - startedAt} size=$size")
         if (position > size) throw DataSourceException(C.RESULT_END_OF_INPUT)
 
         bytesRemaining = if (dataSpec.length == C.LENGTH_UNSET.toLong()) {
@@ -124,6 +125,7 @@ class TdDataSource(td: TdlClient) : BaseDataSource(true) {
         // where a start's seconds can hide, and a fast open is not news.
         val took = SystemClock.elapsedRealtime() - startedAt
         if (took >= SLOW_LOG_MS) Log.i(LOG_TAG, "open of file $fileId at $position took $took ms")
+        com.tmplayer.data.DiagnosticSession.event("SOURCE_OPEN", "offset=$position elapsedMs=$took completed=${bytes.completed}")
         return bytesRemaining
     }
 

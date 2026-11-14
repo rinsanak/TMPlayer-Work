@@ -54,6 +54,9 @@ object HomeCache {
     @Volatile
     private var read = false
 
+    /** Never waits for the disk reader or writer's lock. Safe during a UI frame. */
+    fun peek(): Snapshot? = memory
+
     /**
      * The last snapshot, read off the disk the first time and from memory after. Cheap to call
      * from the main thread once [preload] has run; otherwise the first call reads the file.

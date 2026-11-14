@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.tmplayer.data.DiagnosticSession
+import com.tmplayer.data.DiagnosticUpload
 import com.tmplayer.i18n.L
 import com.tmplayer.ui.components.TmButton
 import com.tmplayer.ui.components.TmSecondaryButton
@@ -16,6 +17,7 @@ import com.tmplayer.ui.components.rememberToast
 import com.tmplayer.ui.theme.Tone
 import com.tmplayer.ui.theme.glassPanel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -41,12 +43,24 @@ internal fun DiagnosticControls(modifier: Modifier = Modifier) {
             TmSecondaryButton(enabled = !busy && state.serial > 0, onClick = {
                 busy = true
                 scope.launch {
-                    runCatching { withContext(Dispatchers.IO) { DiagnosticSession.stop() } }.onSuccess { file ->
-                        val place = withContext(Dispatchers.IO) { runCatching { SharedDownloads.copyDiagnostic(context, file) }.getOrNull() }
-                        if (place != null) say(L.logsSavedTo(place))
-                        if (!shareDiagnosticFile(context, file) && place == null) say(L.logsFailed)
-                    }.onFailure { say(L.logsFailed) }
-                    busy = false
+                    try {
+                        val file = withContext(Dispatchers.IO) { DiagnosticSession.stop() }
+                        try {
+                            DiagnosticUpload.send(file)
+                            say(L.logsSavedTo(L.chatsSavedMessages))
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            say(L.logsFailed)
+                            val place = withContext(Dispatchers.IO) { runCatching { SharedDownloads.copyDiagnostic(context, file) }.getOrNull() }
+                            if (place != null) say(L.logsSavedTo(place))
+                            shareDiagnosticFile(context, file)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        say(L.logsFailed)
+                    } finally { busy = false }
                 }
             }) { Text(L.logsSessionStop) }
         }

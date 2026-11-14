@@ -25,6 +25,12 @@ class DiagnosticJournalTest {
         assertFalse(text, "sekret" in text || "hidden" in text || "966555555555" in text || "https://" in text)
         assertFalse(DiagnosticRedactor.scrub("{\"api_hash\":\"supersecret\"}").contains("supersecret"))
     }
+    @Test fun `prefixed and quoted secrets cannot leak through diagnostic exports`() {
+        val raw = """TG_API_HASH="private multi word hash" MSONE_GATEWAY_KEY='gateway secret' KEYSTORE_PASSWORD=not-for-logs"""
+        val scrubbed = DiagnosticRedactor.scrub(raw)
+        assertFalse(scrubbed, "private" in scrubbed || "multi word" in scrubbed || "gateway secret" in scrubbed || "not-for-logs" in scrubbed)
+        assertTrue(scrubbed, "[redacted]" in scrubbed)
+    }
     @Test fun `a file cannot be used as a directory and existing data is preserved`() {
         val root = Files.createTempFile("diagnostic-file", ".txt").toFile()
         try {

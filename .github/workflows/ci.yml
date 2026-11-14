@@ -102,7 +102,7 @@ jobs:
         if: steps.reuse.outputs.core != 'true'
         run: |
           if [ "${{ steps.checks.outputs.account }}" = true ]; then
-            ./gradlew :core:jvmTest --tests '*AccountSyncDocTest' --tests '*HomeResumeTest' --tests '*ResumeRulesTest' --tests '*ResumeSyncDocTest' --tests '*BackupCoverageTest' --tests '*HomeRowsTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
+            ./gradlew :core:jvmTest --tests '*DiagnosticJournalTest' --tests '*AccountSyncDocTest' --tests '*HomeResumeTest' --tests '*ResumeRulesTest' --tests '*ResumeSyncDocTest' --tests '*BackupCoverageTest' --tests '*HomeRowsTest' :ui:jvmTest --tests '*WholeSeriesTest' --tests '*HomeViewModelCacheTest'
           elif [ "${{ steps.checks.outputs.home }}" = true ]; then
             ./gradlew :core:jvmTest --tests '*HomeRowsTest' --tests '*HomeContentTest'
           elif [ "${{ steps.checks.outputs.player }}" = true ]; then
@@ -129,7 +129,7 @@ jobs:
           if [ "${{ steps.checks.outputs.focused }}" = true ]; then
             ./gradlew :app:testDebugUnitTest --tests '*GlassCards*Test' --tests '*TvReachGlass*Test'
           else
-            ./gradlew :app:testDebugUnitTest --tests '*DiagnosticSessionTest' --tests '*GlassCards*Test' --tests '*PlayerExtras*Test' --tests '*FastScrollerRender*Test' --tests '*TvReach*Test'
+            ./gradlew :app:testDebugUnitTest --tests '*DiagnosticSessionTest' --tests '*DiagnosticUploadTest' --tests '*GlassCards*Test' --tests '*PlayerExtras*Test' --tests '*FastScrollerRender*Test' --tests '*TvReach*Test'
           fi
 
       - name: Check account sync storage, installer and Continue Home
@@ -137,9 +137,9 @@ jobs:
         timeout-minutes: 12
         run: |
           if [ "${{ steps.reuse.outputs.core }}" = true ]; then
-            ./gradlew :app:testDebugUnitTest --tests '*SystemInstallerTest' --tests '*CompactControlsTest'
+            ./gradlew :app:testDebugUnitTest --tests '*DiagnosticSessionTest' --tests '*DiagnosticUploadTest' --tests '*SystemInstallerTest' --tests '*CompactControlsTest'
           else
-            ./gradlew :app:testDebugUnitTest --tests '*AccountSettingsSyncTest' --tests '*SystemInstallerTest' --tests '*ContinueHomeTest' --tests '*CompactControlsTest'
+            ./gradlew :app:testDebugUnitTest --tests '*DiagnosticSessionTest' --tests '*DiagnosticUploadTest' --tests '*AccountSettingsSyncTest' --tests '*SystemInstallerTest' --tests '*ContinueHomeTest' --tests '*CompactControlsTest'
           fi
 
       - name: Check TV Home artwork and phone regression

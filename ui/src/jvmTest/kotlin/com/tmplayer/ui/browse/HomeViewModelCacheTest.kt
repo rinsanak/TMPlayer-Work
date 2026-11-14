@@ -3,6 +3,8 @@ package com.tmplayer.ui.browse
 import com.tmplayer.data.MediaItem
 import com.tmplayer.data.MediaItem.Locality
 import com.tmplayer.data.ResumeRecord
+import com.tmplayer.data.HomeCache
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -12,6 +14,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -39,6 +43,40 @@ class HomeViewModelCacheTest {
         override suspend fun recentMedia() = listOf(video(1, cached = true), video(2, cached = false))
         override suspend fun mediaItem(chatId: Long, messageId: Long) = video(messageId, cached = messageId == 1L)
         override suspend fun wholeOnDevice(item: MediaItem) = item.messageId == onDisk
+    }
+
+    @Test
+    fun `cold storage does not block construction or overwrite fresh rows`() = runTest(dispatcher) {
+        HomeCache.file = null
+        HomeCache.clear()
+        val disk = CompletableDeferred<HomeCache.Snapshot?>()
+        var reading = false
+        val model = HomeViewModel(source, disk = dispatcher, work = dispatcher, cached = true,
+            cacheRead = { reading = true; disk.await() })
+        assertFalse("No disk read in the constructor", reading)
+        model.request(7)
+        advanceUntilIdle()
+        assertTrue(reading)
+        val fresh = model.loaded.value.getValue(7)
+        disk.complete(HomeCache.Snapshot(mapOf(7L to listOf(video(99, false))), null, setOf(7), emptyMap(), 0))
+        advanceUntilIdle()
+        assertEquals(fresh, model.loaded.value.getValue(7))
+        assertFalse(7L in model.partial.value)
+        HomeCache.clear()
+    }
+
+    @Test
+    fun `late cache cannot restore a chat removed from the current selection`() = runTest(dispatcher) {
+        HomeCache.file = null
+        HomeCache.clear()
+        val disk = CompletableDeferred<HomeCache.Snapshot?>()
+        val model = HomeViewModel(source, disk = dispatcher, work = dispatcher, cached = true,
+            cacheRead = { disk.await() })
+        model.fill(emptyList())
+        disk.complete(HomeCache.Snapshot(mapOf(7L to listOf(video(99, false))), null, emptySet(), emptyMap(), 0))
+        advanceUntilIdle()
+        assertTrue(model.loaded.value.isEmpty())
+        HomeCache.clear()
     }
 
     @Test

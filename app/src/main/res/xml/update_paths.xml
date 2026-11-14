@@ -28,6 +28,8 @@
     <cache-path
         name="logs"
         path="logs/" />
+    <!-- Explicit Stop Log exports only, never the raw session or account database. -->
+    <files-path name="diagnostic_exports" path="diagnostics/exports/" />
     <!-- A downloaded video, in TMPlayer's own Downloads folder. -->
     <files-path
         name="downloads"

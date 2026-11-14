@@ -675,7 +675,9 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         val pressed = pressedAt
         val now = SystemClock.elapsedRealtime()
         val since = if (pressed > 0) "press" else "open"
-        Log.i(START_TAG, "$stage at ${now - (if (pressed > 0) pressed else opened)} ms since $since (file $fileId)")
+        val timing = "$stage at ${now - (if (pressed > 0) pressed else opened)} ms since $since"
+        Log.i(START_TAG, "$timing (file $fileId)")
+        com.tmplayer.data.DiagnosticSession.phase(START_TAG, timing)
     }
 
     /**
@@ -3701,6 +3703,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                         initializationDurationMs: Long,
                     ) {
                         watchDecoder = decoderName
+                        com.tmplayer.data.DiagnosticSession.event("DECODER", "video=$decoderName initMs=$initializationDurationMs")
                     }
 
                     override fun onVideoInputFormatChanged(
@@ -4180,6 +4183,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
+            com.tmplayer.data.DiagnosticSession.event("PLAYER_STATE", "state=$state positionMs=${player?.currentPosition} bufferedMs=${player?.totalBufferedDuration}")
             watchTogether.bufferingChanged()
             // Waiting for the stream between two samples is not slow decoding (HX37).
             if (state == Player.STATE_BUFFERING) watch.interrupted()

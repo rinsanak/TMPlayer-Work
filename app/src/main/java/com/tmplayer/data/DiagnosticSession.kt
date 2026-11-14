@@ -17,6 +17,7 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Explicit, app-only recording. No background upload or typed-text capture. */
 object DiagnosticSession {
@@ -27,10 +28,24 @@ object DiagnosticSession {
     private var currentActivity = java.lang.ref.WeakReference<Activity>(null)
     @Volatile private var journal: DiagnosticJournal? = null
     @Volatile private var capturePaused = false
+    @Volatile private var captureClosing = false
     private var logcat: java.lang.Process? = null
     private var reader: Thread? = null
     private var timer: java.util.Timer? = null
+    private val captureLock = Any()
     private val dropped = AtomicLong()
+    private val probePending = AtomicBoolean()
+    private val phases = java.util.ArrayDeque<String>()
+
+    /** Small, memory-only startup trail. Written to disk only after Start Log. */
+    fun phase(source: String, message: String) {
+        val line = "elapsedMs=${SystemClock.elapsedRealtime()} $source $message"
+        synchronized(phases) {
+            if (phases.size == 64) phases.removeFirst()
+            phases.addLast(DiagnosticRedactor.scrub(line))
+        }
+        event("PHASE", line)
+    }
     private val worker = ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, ArrayBlockingQueue(8192),
         java.util.concurrent.ThreadFactory { task -> Thread(task, "TG-diagnostic-writer").apply { isDaemon = true } }).apply { allowCoreThreadTimeOut(true) }
     fun install(application: Application) {
@@ -44,11 +59,11 @@ object DiagnosticSession {
             previous?.uncaughtException(thread, error)
         }
         application.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
-            override fun onActivityCreated(a: Activity, b: Bundle?) { event("ACTIVITY", "created ${a.javaClass.simpleName} restored=${b != null}") }
+            override fun onActivityCreated(a: Activity, b: Bundle?) { phase("ACTIVITY", "created ${a.javaClass.simpleName} restored=${b != null}") }
             override fun onActivityStarted(a: Activity) { event("ACTIVITY", "started ${a.javaClass.simpleName}") }
             override fun onActivityResumed(a: Activity) {
                 currentActivity = java.lang.ref.WeakReference(a)
-                event("ACTIVITY", "resumed ${a.javaClass.simpleName}")
+                phase("ACTIVITY", "resumed ${a.javaClass.simpleName}")
                 val original = a.window.callback ?: return
                 if (original !is RecordingCallback) a.window.callback = RecordingCallback(original, a.javaClass.simpleName)
             }
@@ -69,8 +84,8 @@ object DiagnosticSession {
         }
     }
     private val navigationKeys = setOf(4, 19, 20, 21, 22, 23, 66, 82, 85, 86, 87, 88, 89, 90)
-    fun event(source: String, message: String) {
-        if (capturePaused) return
+    fun event(source: String, message: String): Unit = synchronized(captureLock) {
+        if (capturePaused || captureClosing) return
         val target = journal ?: return
         try { worker.execute { write(target, source, message) } }
         catch (_: java.util.concurrent.RejectedExecutionException) { dropped.incrementAndGet() }
@@ -100,7 +115,8 @@ object DiagnosticSession {
             target.flush()
             if (!prefs.edit().putLong("serial", serial).putBoolean("active", true).commit()) throw java.io.IOException("Cannot persist log serial")
         } catch (e: Exception) { runCatching { target.close() }; throw e }
-        capturePaused = false; dropped.set(0); journal = target; mutable.value = Status(serial, true)
+        capturePaused = false; captureClosing = false; dropped.set(0); journal = target; mutable.value = Status(serial, true)
+        synchronized(phases) { phases.forEach { event("STARTUP_TRAIL", it) } }
         if (interrupted) event("PREVIOUS_SESSION", "Previous process ended before Stop; files retained under diagnostics")
         event("COVERAGE", "app logcat, lifecycle, navigation, touch actions, exceptions, playback, periodic device and network state; credentials and typed text excluded; capture gaps explicitly reported")
         runCatching {
@@ -115,10 +131,13 @@ object DiagnosticSession {
             if (Build.VERSION.SDK_INT >= 24) args += "--pid=${Process.myPid()}"
             val process = ProcessBuilder(args).redirectErrorStream(true).start(); logcat = process
             reader = Thread({
-                runCatching { process.inputStream.bufferedReader().useLines { lines -> lines.forEach { if (journal === target) write(target, "LOGCAT", it) } } }
+                runCatching { process.inputStream.bufferedReader().useLines { lines -> lines.forEach { if (journal === target && !captureClosing) write(target, "LOGCAT", it) } } }
                     .onFailure { if (journal === target) write(target, "CAPTURE_ERROR", "logcat: ${it.stackTraceToString()}") }
             }, "TG-logcat").apply { isDaemon = true; start() }
         }.onFailure { write(target, "CAPTURE_ERROR", "logcat unavailable: ${it.stackTraceToString()}") }
+        var previousCpu = Process.getElapsedCpuTime()
+        var previousElapsed = SystemClock.elapsedRealtime()
+        val mainHandler = android.os.Handler(context.mainLooper)
         timer = java.util.Timer("TG-diagnostic-sampler", true).apply { scheduleAtFixedRate(object : java.util.TimerTask() {
             override fun run() {
                 runCatching {
@@ -126,7 +145,15 @@ object DiagnosticSession {
                     val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
                     val network = cm?.activeNetworkInfo
                     event("SAMPLE", "elapsedMs=${SystemClock.elapsedRealtime()} heapUsed=${runtime.totalMemory()-runtime.freeMemory()} heapMax=${runtime.maxMemory()} nativeHeap=${android.os.Debug.getNativeHeapAllocatedSize()} freeBytes=${context.filesDir.usableSpace} network=${network?.typeName} connected=${network?.isConnected} threads=${Thread.activeCount()}")
-                    android.os.Handler(context.mainLooper).post {
+                    val now = SystemClock.elapsedRealtime()
+                    val cpu = Process.getElapsedCpuTime()
+                    val interval = (now - previousElapsed).coerceAtLeast(1)
+                    event("CPU", "intervalMs=$interval processCpuMs=${cpu - previousCpu} percent=${(cpu - previousCpu) * 100 / interval}")
+                    previousCpu = cpu; previousElapsed = now
+                    if (probePending.compareAndSet(false, true)) mainHandler.post {
+                        probePending.set(false)
+                        if (journal !== target || captureClosing) return@post
+                        event("MAIN", "schedulingDelayMs=${SystemClock.elapsedRealtime() - now}")
                         (currentActivity.get() as? com.tmplayer.player.PlayerActivity)?.let { a -> runCatching { a.diagnosticSnapshot() }.onSuccess { event("PLAYBACK", it) }.onFailure { event("CAPTURE_ERROR", "player snapshot ${it.javaClass.simpleName}") } }
                     }
                     target.flush()
@@ -143,6 +170,8 @@ object DiagnosticSession {
             context.getSharedPreferences("diagnostic-session", 0).edit().putBoolean("active", false).apply()
             return saved
         }
+        // Stop accepting events before the drain barrier, including pending main-thread probes.
+        synchronized(captureLock) { captureClosing = true }
         timer?.cancel(); timer = null; logcat?.destroy(); logcat = null
         reader?.join(1500); reader = null
         val barrier = java.util.concurrent.FutureTask<Unit>({ Unit })
@@ -160,15 +189,18 @@ object DiagnosticSession {
         val folder = File(context.filesDir, "diagnostics/session-${serial.toString().padStart(6, '0')}")
         val parts = folder.listFiles()?.filter { it.name.startsWith("part-") && it.extension == "txt" }?.sortedBy { it.name }.orEmpty()
         if (parts.isEmpty()) throw java.io.IOException("No recorded session")
-        val compressed = parts.sumOf { it.length() } > 8L * 1024 * 1024
-        val output = File(context.cacheDir, "logs/TG-log-${serial.toString().padStart(6, '0')}.${if (compressed) "zip" else "txt"}")
+        val output = File(context.filesDir, "diagnostics/exports/TG-log-${serial.toString().padStart(6, '0')}.zip")
+        // Already finalized: repeated Stop reuses the same bytes, even during a pending upload.
+        if (output.isFile) return output
+        if (context.filesDir.usableSpace < parts.sumOf { it.length() } + 2L * 1024 * 1024)
+            throw java.io.IOException("Not enough space to export diagnostics; recorded parts retained")
         output.parentFile?.mkdirs()
         val temporary = File(output.parentFile, output.name + ".partial")
         try {
-            if (compressed) java.util.zip.ZipOutputStream(temporary.outputStream().buffered()).use { out ->
+            java.util.zip.ZipOutputStream(temporary.outputStream().buffered()).use { out ->
                 for (part in parts) { out.putNextEntry(java.util.zip.ZipEntry(part.name)); part.inputStream().use { it.copyTo(out) }; out.closeEntry() }
                 out.putNextEntry(java.util.zip.ZipEntry("session.txt")); out.write("TG Stream session $serial; parts are in numeric sequence order.\n".toByteArray()); out.closeEntry()
-            } else temporary.outputStream().buffered().use { out -> for (part in parts) part.inputStream().use { it.copyTo(out) } }
+            }
             if (!temporary.renameTo(output)) throw java.io.IOException("Cannot finalize diagnostic export")
         } catch (e: Exception) { temporary.delete(); throw e }
         return output

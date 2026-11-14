@@ -46,6 +46,8 @@ class App : Application() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        com.tmplayer.data.PerfLog.processStart
+        com.tmplayer.data.DiagnosticSession.phase("APP", "onCreate")
         com.tmplayer.data.TgStreamUi.active = true
         // First of all, so a crash anywhere below is written down for the next start to offer.
         CrashReports.watch(this)

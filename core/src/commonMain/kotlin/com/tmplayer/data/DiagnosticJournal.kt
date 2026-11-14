@@ -38,7 +38,7 @@ class DiagnosticJournal(private val directory: File, val serial: Long, private v
     @Synchronized fun close() { if (!closed) { writer?.flush(); writer?.close(); closed = true } }
 }
 object DiagnosticRedactor {
-    private val credentials = Regex("""(?i)\b(authorization|api[_-]?(?:key|hash)|access[_-]?token|refresh[_-]?token|password|secret|cookie|auth[_-]?key|phone[_-]?number|verification[_-]?code)\b["']?\s*[:=]\s*["']?[^"'\s,;}]+""")
+    private val credentials = Regex("""(?i)\b((?:[a-z0-9]+[_-])*(?:authorization|api[_-]?(?:key|hash)|gateway[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|cookie|auth[_-]?key|phone[_-]?number|verification[_-]?code))\b["']?\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^,;}\r\n]+)""")
     private val bearer = Regex("""(?i)\bBearer\s+[^\s,;]+""")
     private val url = Regex("""(?i)(?:https?|tg)://[^\s]+""")
     private val email = Regex("""[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}""")

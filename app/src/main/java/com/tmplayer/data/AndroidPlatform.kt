@@ -21,7 +21,8 @@ import java.io.File
 object AndroidLogSink : LogSink {
     override fun i(tag: String, message: String) {
         Log.i(tag, message)
-        DiagnosticSession.event("CORE/$tag", message)
+        if (tag == "tm-perf" || (tag == "Td" && (message.startsWith("auth:") || message.startsWith("connection:")))) DiagnosticSession.phase(tag, message)
+        else DiagnosticSession.event("CORE/$tag", message)
     }
 
     override fun w(tag: String, message: String, error: Throwable?) {

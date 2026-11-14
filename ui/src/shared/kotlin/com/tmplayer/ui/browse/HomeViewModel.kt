@@ -238,6 +238,8 @@ class HomeViewModel(
     private val connected: Flow<Boolean> = Td.connected,
     /** Milliseconds that only go forward, for the budgets' pauses; the tests pass their virtual clock. */
     private val clock: () -> Long = { System.nanoTime() / 1_000_000 },
+    /** Cold cache reader, dispatched to [disk]. Injectable for delayed-storage regressions. */
+    private val cacheRead: suspend () -> HomeCache.Snapshot? = { HomeCache.load() },
 ) : ViewModel(com.tmplayer.platform.JobFailures.viewModelScope("Home")) {
 
     /**
@@ -467,25 +469,15 @@ class HomeViewModel(
      * The cache is written back a moment after the rows settle ([persist]).
      */
     private fun restore() {
-        val snapshot = HomeCache.load()
-        if (snapshot != null && !snapshot.isEmpty) {
-            _loaded.value = snapshot.loaded
-            _recent.value = snapshot.recent
-            _partial.value = snapshot.partial
-            _art.value = snapshot.art
-            _own.value = snapshot.chats
-            snapshot.art.values.forEach(RecordItems::keep)
-            com.tmplayer.data.PerfLog.mark("home rows from cache (${snapshot.loaded.size} chats)", com.tmplayer.data.PerfLog.processStart)
-            // Written moments ago (the desktop builds Home again on every visit): good as it is.
-            // Otherwise each row is asked again as Home asks for it ([fill]), within its budget.
-            val age = System.currentTimeMillis() - snapshot.savedAt
-            if (age in 0 until STALE_MS) {
-                refreshedAt = clock() - age
-                snapshot.loaded.keys.forEach { fetches.answered("chat:$it") }
-                if (snapshot.recent != null) fetches.answered("recent")
-            }
-        }
+        val ready = HomeCache.peek()
+        if (ready != null) restoreSnapshot(ready)
         viewModelScope.launch {
+            if (ready == null) {
+                val began = System.nanoTime()
+                val snapshot = withContext(disk) { cacheRead() }
+                com.tmplayer.data.PerfLog.mark("home cold cache read", began)
+                restoreSnapshot(snapshot)
+            }
             combine(_loaded, _recent, _partial, _art, _own) { loaded, recent, partial, art, own ->
                 HomeCache.Snapshot(loaded, recent, partial, art, System.currentTimeMillis(), own)
             }.collectLatest { snapshot ->
@@ -493,6 +485,31 @@ class HomeViewModel(
                 kotlinx.coroutines.delay(if (com.tmplayer.ui.theme.Motion.television) PERSIST_AFTER_TV_MS else PERSIST_AFTER_MS)
                 if (snapshot.isEmpty) return@collectLatest
                 withContext(disk) { HomeCache.save(snapshot) }
+            }
+        }
+    }
+
+    private fun restoreSnapshot(snapshot: HomeCache.Snapshot?) {
+        if (snapshot != null && !snapshot.isEmpty) {
+            // Telegram and a changed selection can arrive during the disk read. Keep their
+            // answers, and never put a removed chat back into Home from the old snapshot.
+            val restored = snapshot.loaded.filterKeys { it !in _loaded.value && (!filled || it in order) }
+            val restoredRecent = _recent.value == null
+            _loaded.value = restored + _loaded.value
+            if (restoredRecent) _recent.value = snapshot.recent
+            _partial.value = _partial.value + snapshot.partial.filter { it in restored }
+            val restoredArt = snapshot.art.filterKeys { it !in _art.value }
+            _art.value = restoredArt + _art.value
+            if (_own.value.isEmpty()) _own.value = snapshot.chats.filter { !filled || it.id in order }
+            restoredArt.values.forEach(RecordItems::keep)
+            com.tmplayer.data.PerfLog.mark("home rows from cache (${snapshot.loaded.size} chats)", com.tmplayer.data.PerfLog.processStart)
+            // Written moments ago (the desktop builds Home again on every visit): good as it is.
+            // Otherwise each row is asked again as Home asks for it ([fill]), within its budget.
+            val age = System.currentTimeMillis() - snapshot.savedAt
+            if (age in 0 until STALE_MS && (restored.isNotEmpty() || (restoredRecent && snapshot.recent != null))) {
+                refreshedAt = clock() - age
+                restored.keys.forEach { fetches.answered("chat:$it") }
+                if (restoredRecent && snapshot.recent != null) fetches.answered("recent")
             }
         }
     }
