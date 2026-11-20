@@ -21,10 +21,16 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** Explicit, app-only recording. No background upload or typed-text capture. */
 object DiagnosticSession {
-    data class Status(val serial: Long = 0, val recording: Boolean = false, val error: String? = null)
+    data class Status(
+        val serial: Long = 0,
+        val recording: Boolean = false,
+        val error: String? = null,
+        val pendingExport: Boolean = false,
+    )
     private val mutable = MutableStateFlow(Status())
     val status = mutable.asStateFlow()
     private var app: Application? = null
+    @Volatile private var tvCapture = false
     private var currentActivity = java.lang.ref.WeakReference<Activity>(null)
     @Volatile private var journal: DiagnosticJournal? = null
     @Volatile private var capturePaused = false
@@ -37,25 +43,54 @@ object DiagnosticSession {
     private val probePending = AtomicBoolean()
     private val phases = java.util.ArrayDeque<String>()
 
-    /** Small, memory-only startup trail. Written to disk only after Start Log. */
+    /** Keep the initial TV timings in memory until the viewer starts a recording. */
     fun phase(source: String, message: String) {
         val line = "elapsedMs=${SystemClock.elapsedRealtime()} $source $message"
         synchronized(phases) {
-            if (phases.size == 64) phases.removeFirst()
-            phases.addLast(DiagnosticRedactor.scrub(line))
+            if (phases.size == 64 && !tvCapture) phases.removeFirst()
+            if (phases.size < 64) phases.addLast(DiagnosticRedactor.scrub(line))
         }
         event("PHASE", line)
     }
+
+    fun tvPhase(source: String, message: String) {
+        if (tvCapture) phase(source, "processCpuMs=${Process.getElapsedCpuTime()} $message")
+    }
+
+    fun coreLog(tag: String, message: String) {
+        if (tag == "tm-perf" || (tag == "Td" && (message.startsWith("auth:") || message.startsWith("connection:")))) {
+            phase(tag, message)
+        } else if (!tvCapture) {
+            event("CORE/$tag", message)
+        }
+    }
+
+    fun coreWarning(tag: String, message: String, error: Throwable?) {
+        if (tvCapture) {
+            event("CORE_WARNING", "tag=$tag type=${error?.javaClass?.simpleName ?: "warning"}")
+        } else {
+            event("CORE_ERROR/$tag", message + (error?.let { "\n" + it.stackTraceToString() } ?: ""))
+        }
+    }
+
     private val worker = ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, ArrayBlockingQueue(8192),
         java.util.concurrent.ThreadFactory { task -> Thread(task, "TG-diagnostic-writer").apply { isDaemon = true } }).apply { allowCoreThreadTimeOut(true) }
     fun install(application: Application) {
         if (app === application) return
+        if (app != null) synchronized(phases) { phases.clear() }
         app = application
+        tvCapture = FormFactor.isTv(application)
         val prefs = application.getSharedPreferences("diagnostic-session", 0)
-        mutable.value = Status(runCatching { prefs.getLong("serial", 0) }.getOrDefault(0).coerceAtLeast(0))
+        val serial = runCatching { prefs.getLong("serial", 0) }.getOrDefault(0).coerceAtLeast(0)
+        val interrupted = runCatching { prefs.getBoolean("active", false) }.getOrDefault(false)
+        mutable.value = Status(serial, pendingExport = serial > 0 && interrupted)
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
-            runCatching { journal?.record("CRASH", "thread=${thread.name}\n${error.stackTraceToString()}"); journal?.flush() }
+            runCatching {
+                val details = if (tvCapture) error.javaClass.simpleName else "thread=${thread.name}\n${error.stackTraceToString()}"
+                journal?.record("CRASH", details)
+                journal?.flush()
+            }
             previous?.uncaughtException(thread, error)
         }
         application.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
@@ -87,7 +122,9 @@ object DiagnosticSession {
     fun event(source: String, message: String): Unit = synchronized(captureLock) {
         if (capturePaused || captureClosing) return
         val target = journal ?: return
-        try { worker.execute { write(target, source, message) } }
+        if (tvCapture && source == "HOME_CARD") return
+        val atElapsedMs = SystemClock.elapsedRealtime()
+        try { worker.execute { write(target, source, "atElapsedMs=$atElapsedMs $message") } }
         catch (_: java.util.concurrent.RejectedExecutionException) { dropped.incrementAndGet() }
     }
     private fun write(target: DiagnosticJournal, source: String, message: String) {
@@ -98,7 +135,8 @@ object DiagnosticSession {
             target.record(source, message)
         }.onFailure {
             capturePaused = true
-            mutable.value = mutable.value.copy(recording = false, error = it.message)
+            val error = if (tvCapture) it.javaClass.simpleName else it.message
+            mutable.value = mutable.value.copy(recording = false, error = error)
             timer?.cancel(); logcat?.destroy()
         }
     }
@@ -115,26 +153,17 @@ object DiagnosticSession {
             target.flush()
             if (!prefs.edit().putLong("serial", serial).putBoolean("active", true).commit()) throw java.io.IOException("Cannot persist log serial")
         } catch (e: Exception) { runCatching { target.close() }; throw e }
-        capturePaused = false; captureClosing = false; dropped.set(0); journal = target; mutable.value = Status(serial, true)
+        capturePaused = false; captureClosing = false; dropped.set(0); journal = target; mutable.value = Status(serial, recording = true, pendingExport = true)
         synchronized(phases) { phases.forEach { event("STARTUP_TRAIL", it) } }
         if (interrupted) event("PREVIOUS_SESSION", "Previous process ended before Stop; files retained under diagnostics")
-        event("COVERAGE", "app logcat, lifecycle, navigation, touch actions, exceptions, playback, periodic device and network state; credentials and typed text excluded; capture gaps explicitly reported")
-        runCatching {
-            val snapshot = kotlinx.coroutines.runBlocking { kotlinx.coroutines.withTimeout(3000) { SettingsStore(context).rawEntries() } }
-            val strings = setOf("theme_choice", "ui_scale", "language", "subtitle_size", "subtitle_position", "subtitle_mode", "preferred_audio_language", "preferred_subtitle_language")
-            for ((key, value) in snapshot.toSortedMap()) {
-                if (!Regex("(?i)pin|auth|token|secret|api|password|phone").containsMatchIn(key) && (value is Boolean || value is Number || key in strings)) event("SETTING", "$key=$value")
-            }
-        }.onFailure { event("CAPTURE_ERROR", "settings snapshot: ${it.javaClass.simpleName}") }
-        runCatching {
-            val args = mutableListOf("logcat", "-v", "threadtime", "-T", "1")
-            if (Build.VERSION.SDK_INT >= 24) args += "--pid=${Process.myPid()}"
-            val process = ProcessBuilder(args).redirectErrorStream(true).start(); logcat = process
-            reader = Thread({
-                runCatching { process.inputStream.bufferedReader().useLines { lines -> lines.forEach { if (journal === target && !captureClosing) write(target, "LOGCAT", it) } } }
-                    .onFailure { if (journal === target) write(target, "CAPTURE_ERROR", "logcat: ${it.stackTraceToString()}") }
-            }, "TG-logcat").apply { isDaemon = true; start() }
-        }.onFailure { write(target, "CAPTURE_ERROR", "logcat unavailable: ${it.stackTraceToString()}") }
+        event("COVERAGE", if (tvCapture) {
+            "structured TV timings, lifecycle, navigation, playback, periodic device and network state"
+        } else {
+            "app logcat, lifecycle, navigation, touch actions, exceptions, playback, periodic device and network state"
+        })
+        if (!tvCapture) {
+            capturePhoneDetails(context, target)
+        }
         var previousCpu = Process.getElapsedCpuTime()
         var previousElapsed = SystemClock.elapsedRealtime()
         val mainHandler = android.os.Handler(context.mainLooper)
@@ -162,14 +191,28 @@ object DiagnosticSession {
         }, 0, 1000) }
         return serial
     }
+    private fun capturePhoneDetails(context: Application, target: DiagnosticJournal) {
+        runCatching {
+            val snapshot = kotlinx.coroutines.runBlocking { kotlinx.coroutines.withTimeout(3000) { SettingsStore(context).rawEntries() } }
+            val strings = setOf("theme_choice", "ui_scale", "language", "subtitle_size", "subtitle_position", "subtitle_mode", "preferred_audio_language", "preferred_subtitle_language")
+            for ((key, value) in snapshot.toSortedMap()) {
+                if (!Regex("(?i)pin|auth|token|secret|api|password|phone").containsMatchIn(key) && (value is Boolean || value is Number || key in strings)) event("SETTING", "$key=$value")
+            }
+        }.onFailure { event("CAPTURE_ERROR", "settings snapshot: ${it.javaClass.simpleName}") }
+        runCatching {
+            val args = mutableListOf("logcat", "-v", "threadtime", "-T", "1")
+            if (Build.VERSION.SDK_INT >= 24) args += "--pid=${Process.myPid()}"
+            val process = ProcessBuilder(args).redirectErrorStream(true).start(); logcat = process
+            reader = Thread({
+                runCatching { process.inputStream.bufferedReader().useLines { lines -> lines.forEach { if (journal === target && !captureClosing) write(target, "LOGCAT", it) } } }
+                    .onFailure { if (journal === target) write(target, "CAPTURE_ERROR", "logcat: ${it.stackTraceToString()}") }
+            }, "TG-logcat").apply { isDaemon = true; start() }
+        }.onFailure { write(target, "CAPTURE_ERROR", "logcat unavailable: ${it.stackTraceToString()}") }
+    }
     @Synchronized fun stop(): File {
         val context = app ?: throw java.io.IOException("Diagnostic collector not initialized")
         val target = journal
-        if (target == null) {
-            val saved = export(context, mutable.value.serial)
-            context.getSharedPreferences("diagnostic-session", 0).edit().putBoolean("active", false).apply()
-            return saved
-        }
+        if (target == null) return finishExport(context, mutable.value.serial)
         // Stop accepting events before the drain barrier, including pending main-thread probes.
         synchronized(captureLock) { captureClosing = true }
         timer?.cancel(); timer = null; logcat?.destroy(); logcat = null
@@ -181,10 +224,17 @@ object DiagnosticSession {
         runCatching { target.record("SESSION_STOP", "serial=${target.serial} dropped=${dropped.get()} captureError=${mutable.value.error.orEmpty()}") }
         journal = null
         runCatching { target.close() }.onFailure { mutable.value = mutable.value.copy(error = it.message) }
-        context.getSharedPreferences("diagnostic-session", 0).edit().putBoolean("active", false).apply()
         mutable.value = mutable.value.copy(recording = false)
-        return export(context, target.serial)
+        return finishExport(context, target.serial)
     }
+
+    private fun finishExport(context: Application, serial: Long): File {
+        val file = export(context, serial)
+        context.getSharedPreferences("diagnostic-session", 0).edit().putBoolean("active", false).apply()
+        mutable.value = mutable.value.copy(pendingExport = false, error = null)
+        return file
+    }
+
     private fun export(context: Application, serial: Long): File {
         val folder = File(context.filesDir, "diagnostics/session-${serial.toString().padStart(6, '0')}")
         val parts = folder.listFiles()?.filter { it.name.startsWith("part-") && it.extension == "txt" }?.sortedBy { it.name }.orEmpty()

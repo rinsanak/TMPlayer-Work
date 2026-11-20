@@ -65,6 +65,7 @@ import com.tmplayer.ui.components.MenuAction
 import com.tmplayer.ui.components.TvMenu
 import com.tmplayer.ui.i18n.LocalStrings
 import com.tmplayer.ui.icons.TmIcons
+import com.tmplayer.ui.settings.TvDiagnosticToggle
 import com.tmplayer.ui.theme.Motion
 import com.tmplayer.ui.theme.Tone
 import com.tmplayer.ui.theme.Tv
@@ -149,6 +150,7 @@ internal fun TvTopBar(
     var profileOpen by remember { mutableStateOf(false) }
     val ground = Tone.background
     val homeFocus = remember { FocusRequester() }
+    val diagnosticFocus = remember { FocusRequester() }
     val chatsFocus = remember { FocusRequester() }
     val searchFocus = remember { FocusRequester() }
     val profileFocus = remember { FocusRequester() }
@@ -213,6 +215,9 @@ internal fun TvTopBar(
                 BarTab(s.browseTabChats, TmIcons.Chats, current == TvBarTab.Chats && !searchOpen, onChats, Modifier.focusRequester(focusOf(TvBarTab.Chats, chatsFocus)).tvReturnPoint(focusOf(TvBarTab.Chats, chatsFocus)))
             }
             Spacer(Modifier.width(18.dp))
+            if (target == TvBarTab.Home) {
+                TvDiagnosticToggle(Modifier.focusRequester(diagnosticFocus).tvReturnPoint(diagnosticFocus))
+            }
             BarTab(s.navUpdate, TmIcons.Refresh, false, nav.onUpdate)
             // The app's own mark and its name, the way a television's home screen signs itself:
             // the mark at the picture's size.

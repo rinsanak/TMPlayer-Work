@@ -1073,11 +1073,13 @@ internal fun ShelfTile(
     onOpenSeries: (Series) -> Unit,
     modifier: Modifier,
 ) {
-    val diagnostic by com.tmplayer.data.DiagnosticSession.status.collectAsState()
-    LaunchedEffect(entry, diagnostic.serial, diagnostic.recording) {
-        if (!diagnostic.recording) return@LaunchedEffect
-        val item = when (entry) { is ShelfEntry.File -> entry.item; is ShelfEntry.Show -> entry.series.cover }
-        com.tmplayer.data.DiagnosticSession.event("HOME_CARD", "identityHash=${com.tmplayer.data.HomeContent.identity(item).hashCode()} titleHash=${com.tmplayer.data.TitleIdentity.name(item).hashCode()} year=${com.tmplayer.data.TitleIdentity.year(item)} fileId=${item.fileId} thumbnailId=${item.thumbnailFileId} durationSec=${item.durationSec} copies=${item.versions.size} rawName=${item.fileName} parsedTitle=${com.tmplayer.data.TitleIdentity.parsed(item).title}")
+    if (touch) {
+        val diagnostic by com.tmplayer.data.DiagnosticSession.status.collectAsState()
+        LaunchedEffect(entry, diagnostic.serial, diagnostic.recording) {
+            if (!diagnostic.recording) return@LaunchedEffect
+            val item = when (entry) { is ShelfEntry.File -> entry.item; is ShelfEntry.Show -> entry.series.cover }
+            com.tmplayer.data.DiagnosticSession.event("HOME_CARD", "identityHash=${com.tmplayer.data.HomeContent.identity(item).hashCode()} titleHash=${com.tmplayer.data.TitleIdentity.name(item).hashCode()} year=${com.tmplayer.data.TitleIdentity.year(item)} fileId=${item.fileId} thumbnailId=${item.thumbnailFileId} durationSec=${item.durationSec} copies=${item.versions.size} rawName=${item.fileName} parsedTitle=${com.tmplayer.data.TitleIdentity.parsed(item).title}")
+        }
     }
     val selectArtwork = LocalHomeArtworkSelection.current
     val focusedModifier = modifier.onFocusChanged { state ->

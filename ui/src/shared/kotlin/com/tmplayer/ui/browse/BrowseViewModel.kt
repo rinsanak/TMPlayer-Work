@@ -573,6 +573,7 @@ class ChatListViewModel(
         val job = viewModelScope.launch {
             val session = Td.awaitAuthorizedSession()
             val repository = ChatRepository(session.client)
+            val localStarted = System.nanoTime()
             try {
                 // Either local read may be briefly unavailable on the first Ready update after
                 // QR sign-in. Neither is treated as the final answer; the connected pass below
@@ -605,6 +606,7 @@ class ChatListViewModel(
                 }
                 if (!session.isCurrent()) return@launch
                 if (chats != null) publish()
+                com.tmplayer.data.PerfLog.mark("chat library local pass (chats=${chats?.size ?: 0})", localStarted)
 
                 // The local database is the first answer. Telegram is then synchronized when its
                 // socket is ready, without holding the saved library behind a connection wait.
@@ -628,7 +630,12 @@ class ChatListViewModel(
                 }
                 // Handed what the local read already produced, so the sync fetches only chats it
                 // has not seen rather than the whole list a second time.
+                val syncStarted = System.nanoTime()
                 val sync = repository.syncChats(limit = limit, known = chats.orEmpty())
+                com.tmplayer.data.PerfLog.mark(
+                    "chat library network pass (chats=${sync.chats.size} complete=${sync.complete} partial=${sync.partial})",
+                    syncStarted,
+                )
                 // A failed sync is not an empty library. The pages that did arrive are still
                 // worth showing, and the flood wait inside the message is what stops Refresh
                 // from making the next attempt worse.

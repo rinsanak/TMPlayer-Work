@@ -105,6 +105,7 @@ import com.tmplayer.data.Account
 import com.tmplayer.data.ChatFolderSummary
 import com.tmplayer.data.ChatKind
 import com.tmplayer.data.ChatSummary
+import com.tmplayer.data.DiagnosticSession
 import com.tmplayer.data.FormFactor
 import com.tmplayer.data.Updates
 import com.tmplayer.i18n.L
@@ -1006,6 +1007,13 @@ internal fun BrowseScreen(
             runCatching { barFocus.requestFocus() }
         }
         val homeShown = !tvSearchOpen && tab.isHome
+        val homeHasRows = homeRows.isNotEmpty()
+        val browseState = state.javaClass.simpleName
+        LaunchedEffect(homeShown, browseState, homeHasRows, homeRowsReady) {
+            if (homeShown) {
+                DiagnosticSession.tvPhase("TV_HOME", "state=$browseState rows=${homeRows.size} rowsReady=$homeRowsReady")
+            }
+        }
         // Back anywhere in a page goes up to the bar first, on the page's own item, and Home
         // goes back to its top as it does; only Back on Home's bar asks to leave the app.
         BackHandler(enabled = !tvBarHasFocus) {

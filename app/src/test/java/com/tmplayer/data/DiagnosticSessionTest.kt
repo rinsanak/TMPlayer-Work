@@ -42,4 +42,35 @@ class DiagnosticSessionTest {
             assertFalse(DiagnosticSession.status.value.recording)
         } finally { runCatching { DiagnosticSession.stop() }; Thread.setDefaultUncaughtExceptionHandler(previous); worker.setKeepAliveTime(30, java.util.concurrent.TimeUnit.SECONDS) }
     }
+    @Test fun `TV ZIP preserves early phases and excludes private diagnostic strings`() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        FormFactor.override(true)
+        try {
+            DiagnosticSession.install(RuntimeEnvironment.getApplication())
+            DiagnosticSession.phase("APP_TEST", "early launch")
+            repeat(80) { DiagnosticSession.phase("NOISE", "sample=$it") }
+            DiagnosticSession.start()
+            assertTrue(DiagnosticSession.status.value.pendingExport)
+            DiagnosticSession.coreLog("Td", "auth: Waiting -> Ready")
+            DiagnosticSession.coreLog("Td", "private message text")
+            DiagnosticSession.coreWarning("Td", "private message text", IllegalStateException("private message text"))
+            DiagnosticSession.event("HOME_CARD", "rawName=private.mkv fileId=123")
+            DiagnosticSession.event("FIRST_FRAME", "sincePlayMs=1234")
+
+            val lines = content(DiagnosticSession.stop())
+            assertTrue(lines.contains("APP_TEST early launch"))
+            assertTrue(lines.contains("Td auth: Waiting -> Ready"))
+            assertTrue(lines.contains("CORE_WARNING") && lines.contains("IllegalStateException"))
+            assertTrue(lines.contains("FIRST_FRAME atElapsedMs=") && lines.contains("sincePlayMs=1234"))
+            assertFalse(lines.contains("private message text"))
+            assertFalse(lines.contains("private.mkv"))
+            assertFalse(lines.contains(" LOGCAT "))
+            assertFalse(DiagnosticSession.status.value.pendingExport)
+        } finally {
+            runCatching { DiagnosticSession.stop() }
+            FormFactor.override(false)
+            Thread.setDefaultUncaughtExceptionHandler(previous)
+        }
+    }
+
 }

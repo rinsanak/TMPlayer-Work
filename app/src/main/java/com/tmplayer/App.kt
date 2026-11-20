@@ -47,7 +47,12 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         com.tmplayer.data.PerfLog.processStart
-        com.tmplayer.data.DiagnosticSession.phase("APP", "onCreate")
+        val processAge = if (android.os.Build.VERSION.SDK_INT >= 24) {
+            android.os.SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()
+        } else {
+            null
+        }
+        com.tmplayer.data.DiagnosticSession.phase("APP", "onCreate processAgeMs=$processAge")
         com.tmplayer.data.TgStreamUi.active = true
         // First of all, so a crash anywhere below is written down for the next start to offer.
         CrashReports.watch(this)
@@ -57,6 +62,13 @@ class App : Application() {
         // The shared code logs through a facade; on Android it goes to logcat as it always has.
         Logger.sink = AndroidLogSink
         com.tmplayer.data.DiagnosticSession.install(this)
+        if (com.tmplayer.ui.theme.Motion.television) {
+            val queuedAt = android.os.SystemClock.elapsedRealtime()
+            android.os.Handler(mainLooper).post {
+                val delay = android.os.SystemClock.elapsedRealtime() - queuedAt
+                com.tmplayer.data.DiagnosticSession.tvPhase("APP", "first main queue probe schedulingDelayMs=$delay")
+            }
+        }
         // A background job or a view model's job that throws is logged and reported (with the
         // switch on), never the end of the process (HX10).
         com.tmplayer.platform.JobFailures.report = CrashReports::handled
@@ -220,6 +232,7 @@ class App : Application() {
         NetworkMonitor.start(this)
         // TDLib takes a moment to open its database; starting here means the login screen is
         // already showing a QR code by the time the user has finished reading the first line.
+        com.tmplayer.data.DiagnosticSession.tvPhase("APP", "tdlib start requested")
         Td.start(this)
         // Which pictures this device plays smoothly (HX2): the copy chooser and the player ask it.
         com.tmplayer.player.DeviceDecode.start(this)
@@ -257,6 +270,7 @@ class App : Application() {
             // from a cache. This can. See [WatchCache.sweep].
             runCatching { WatchCache.sweep(this@App) }
         }
+        com.tmplayer.data.DiagnosticSession.tvPhase("APP", "onCreate complete")
     }
 
     /** Locks [AppLockSession] when no activity of this app is started any more. */

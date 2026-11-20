@@ -86,6 +86,8 @@ class TdDataSource(td: TdlClient) : BaseDataSource(true) {
     private var aheadAt = -1L
     private var aheadLength = 0
 
+    private var firstWait = true
+
     override fun getUri(): Uri? = uri
 
     override fun getResponseHeaders(): Map<String, List<String>> = headers
@@ -100,6 +102,8 @@ class TdDataSource(td: TdlClient) : BaseDataSource(true) {
         headers = dataSpec.uri.getQueryParameter(TYPE_PARAM)?.let { mapOf("Content-Type" to listOf(it)) } ?: emptyMap()
         position = dataSpec.position
         aheadAt = -1L
+        firstWait = true
+        com.tmplayer.data.DiagnosticSession.event("SOURCE_OPEN_BEGIN", "offset=$position")
 
         // Subscribed before the first getFile, so nothing arriving while it is in flight is
         // missed: an update dropped there is a second of stall for no reason.
@@ -117,7 +121,10 @@ class TdDataSource(td: TdlClient) : BaseDataSource(true) {
 
         // A finished file needs nothing from TDLib, not even a download request, which would
         // only re-enter its scheduler for bytes that are already sitting on disk.
-        if (!bytes.completed) blocking(OPEN_TIMEOUT_MS) { bytes.requestUnlessOnDisk(position) }
+        if (!bytes.completed) {
+            com.tmplayer.data.DiagnosticSession.event("SOURCE_REQUEST", "offset=$position")
+            blocking(OPEN_TIMEOUT_MS) { bytes.requestUnlessOnDisk(position) }
+        }
 
         opened = true
         transferStarted(dataSpec)
@@ -180,10 +187,22 @@ class TdDataSource(td: TdlClient) : BaseDataSource(true) {
     /** The slow path of a read: waits for bytes at [position], and says so when that took a while. */
     private fun awaitLogged(): Long {
         val startedAt = SystemClock.elapsedRealtime()
-        val available = blocking(READ_TIMEOUT_MS) { bytes.awaitBytesAt(position) }
-        val took = SystemClock.elapsedRealtime() - startedAt
-        if (took >= SLOW_LOG_MS) Log.i(LOG_TAG, "waited $took ms for bytes at $position of file ${bytes.fileId}")
-        return available
+        if (firstWait) {
+            firstWait = false
+            com.tmplayer.data.DiagnosticSession.event("SOURCE_WAIT_BEGIN", "offset=$position")
+        }
+        try {
+            val available = blocking(READ_TIMEOUT_MS) { bytes.awaitBytesAt(position) }
+            val took = SystemClock.elapsedRealtime() - startedAt
+            if (took >= SLOW_LOG_MS) {
+                Log.i(LOG_TAG, "waited $took ms for bytes at $position of file ${bytes.fileId}")
+                com.tmplayer.data.DiagnosticSession.event("SOURCE_WAIT", "offset=$position durationMs=$took availableBytes=$available")
+            }
+            return available
+        } catch (e: IOException) {
+            com.tmplayer.data.DiagnosticSession.event("SOURCE_WAIT", "offset=$position durationMs=${SystemClock.elapsedRealtime() - startedAt} error=${e.javaClass.simpleName}")
+            throw e
+        }
     }
 
     override fun close() {

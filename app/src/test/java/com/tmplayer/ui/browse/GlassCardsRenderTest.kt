@@ -102,7 +102,11 @@ abstract class GlassCardsRenderFixture {
                 DiagnosticSession.install(RuntimeEnvironment.getApplication())
                 DiagnosticSession.start()
                 repeat(30) { Thread.sleep(25); shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(50)) }
-                val recorded = DiagnosticSession.stop().readText()
+                val recorded = java.util.zip.ZipFile(DiagnosticSession.stop()).use { zip ->
+                    zip.entries().asSequence()
+                        .filter { it.name.startsWith("part-") }
+                        .joinToString("\n") { entry -> zip.getInputStream(entry).bufferedReader().use { it.readText() } }
+                }
                 assertTrue(recorded, recorded.contains("HOME_CARD") && recorded.contains("rawName=Quiet.Hills.2020.1080p.mkv"))
                 assertTrue(recorded.contains("SESSION_STOP"))
             }

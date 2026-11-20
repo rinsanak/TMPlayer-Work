@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import com.tmplayer.data.FormFactor
 import com.tmplayer.ui.browse.underTvBar
 import com.tmplayer.ui.connect.ConnectBannerView
+import com.tmplayer.ui.settings.DiagnosticToggleButton
 import com.tmplayer.ui.theme.TMPlayerTheme
 import com.tmplayer.ui.theme.Tone
 import org.junit.After
@@ -88,7 +90,7 @@ abstract class TvReachFixture {
 
     protected fun Modifier.named(name: String) = onGloballyPositioned { focusBounds[name] = it.boundsInRoot() }.onFocusChanged { if (it.isFocused) focused = name else if (focused == name) focused = null }
 
-    protected fun compose(glass: Boolean = false, rtl: Boolean = false) {
+    protected fun compose(glass: Boolean = false, rtl: Boolean = false, barExtra: @Composable () -> Unit = {}) {
         kotlinx.coroutines.runBlocking {
             com.tmplayer.data.SettingsStore(org.robolectric.RuntimeEnvironment.getApplication()).setThemeChoice(
                 if (glass) com.tmplayer.data.ThemeChoice.Glass else com.tmplayer.data.ThemeChoice.System)
@@ -110,6 +112,7 @@ abstract class TvReachFixture {
                         Row(Modifier.padding(start = 48.dp, top = 27.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             Box(Modifier.size(80.dp, 40.dp).focusRequester(bar).tvReturnPoint(bar).named("home").focusable())
                             Box(Modifier.size(80.dp, 40.dp).focusRequester(chats).tvReturnPoint(chats).named("chats").focusable())
+                            barExtra()
                         }
                         Row(
                             Modifier.padding(start = 48.dp, top = 80.dp).underTvBar(content, bar),
@@ -355,5 +358,42 @@ class TvReachGlassRtlCardTest : TvReachFixture() {
         cardShown = false
         idle()
         assertEquals("tile2", focused)
+    }
+}
+
+class TvReachDiagnosticToggleTest : TvReachFixture() {
+    @Test fun `one D-pad target starts and stops without losing focus`() {
+        bannerShown = false
+        var recording by mutableStateOf(false)
+        var busy by mutableStateOf(false)
+        val actions = mutableListOf<String>()
+        compose {
+            DiagnosticToggleButton(
+                stop = recording,
+                busy = busy,
+                onClick = {
+                    actions += if (recording) "stop" else "start"
+                    recording = !recording
+                },
+                modifier = Modifier.named("diagnostic"),
+            )
+        }
+        tile[0].requestFocus()
+        key(KeyEvent.KEYCODE_DPAD_UP)
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        assertEquals(focusTrace(), "diagnostic", focused)
+
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        assertEquals(listOf("start"), actions)
+        busy = true
+        idle()
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        assertEquals(listOf("start"), actions)
+        busy = false
+        idle()
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        assertEquals(listOf("start", "stop"), actions)
+        assertEquals(focusTrace(), "diagnostic", focused)
     }
 }

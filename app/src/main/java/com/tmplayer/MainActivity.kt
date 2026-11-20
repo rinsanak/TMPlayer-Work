@@ -5,6 +5,7 @@ import androidx.compose.ui.zIndex
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.BackHandler
@@ -47,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
+import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tmplayer.data.HomeRows
@@ -63,6 +65,7 @@ import com.tmplayer.data.ChatKind
 import com.tmplayer.data.ChatSummary
 import com.tmplayer.data.DiskSpace
 import com.tmplayer.data.AppLockSession
+import com.tmplayer.data.DiagnosticSession
 import com.tmplayer.data.FormFactor
 import com.tmplayer.data.CopyHandoff
 import com.tmplayer.data.MediaItem
@@ -314,6 +317,7 @@ private data class RoomPrompt(
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        DiagnosticSession.tvPhase("MAIN_ACTIVITY", "onCreate begin")
         // Asked for rather than inherited. API 35 and above draws behind the bars anyway, but the
         // stick and half the phones this runs on are older, so this makes the two the same
         // everywhere. Every screen already handles its own insets.
@@ -368,6 +372,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+        if (FormFactor.isTv(this)) {
+            window.decorView.doOnPreDraw {
+                DiagnosticSession.tvPhase("MAIN_ACTIVITY", "first window pre-draw")
+            }
+            DiagnosticSession.tvPhase("MAIN_ACTIVITY", "onCreate complete")
         }
         if (savedInstanceState == null) playFromHomeScreen(intent)
     }
@@ -1141,7 +1151,7 @@ private fun Root() {
      * The preparation itself, split out only so [play] can wrap the whole of it in one pending
      * state without every early return having to remember to clear it.
      */
-    suspend fun playNow(requested: MediaItem, confirmed: Boolean, requestedChat: String) {
+    suspend fun playNow(requested: MediaItem, confirmed: Boolean, requestedChat: String, pressedAt: Long) {
         // A film posted more than once plays the copy chosen for the viewer (VideoCopies.pick):
         // the one they picked, one on the device, the one they started, their usual quality.
         // Off the main thread: judging a copy asks the codec list (HX2), slow the first time on a stick.
@@ -1151,6 +1161,7 @@ private fun Root() {
         withContext(Dispatchers.Default) { runCatching { settings.copyPassedOver(requested) }.getOrNull() }
             ?.takeIf { it.id != chosen.id }
             ?.let { heavy -> com.tmplayer.player.SmootherPick.offer(chosen, com.tmplayer.data.VideoCopies.qualityLabel(heavy) ?: heavy.title) }
+        DiagnosticSession.event("PLAY_PREPARE", "stage=copy_selected durationMs=${SystemClock.elapsedRealtime() - pressedAt}")
         // A stored row's file id may name another file in this session ([Td.fileIdFits]): the
         // message is asked for again, which gives the current id. A video in the Downloads
         // folder plays from its own file and never needs the id.
@@ -1170,6 +1181,7 @@ private fun Root() {
                 chosen
             }
         }
+        DiagnosticSession.event("PLAY_PREPARE", "stage=source_resolved durationMs=${SystemClock.elapsedRealtime() - pressedAt} available=${gone == null}")
         gone?.let { reason ->
             toast(com.tmplayer.data.GoneVideos.openMessage(reason))
             return
@@ -1186,13 +1198,15 @@ private fun Root() {
             // to it: it needs no connection, no room, and it is not the cache's to claim.
             if (LocalDownloads.fileFor(settings, item.chatId, item.messageId) != null) {
                 withContext(Dispatchers.Main) {
+                    DiagnosticSession.event("PLAY_PREPARE", "stage=launch_download durationMs=${SystemClock.elapsedRealtime() - pressedAt}")
                     com.tmplayer.ui.components.PlayPress.open()
-                    context.startActivity(PlayerActivity.intent(context, item, chatTitle))
+                    context.startActivity(PlayerActivity.intent(context, item, chatTitle, pressedAt))
                 }
                 return@withContext
             }
             val local = runCatching { Td.localFileAvailability(item.fileId) }
                 .getOrDefault(LocalFileAvailability.Missing)
+            DiagnosticSession.event("PLAY_PREPARE", "stage=local_availability durationMs=${SystemClock.elapsedRealtime() - pressedAt} local=$local")
             // A stream: its head and index start coming now, while the room is measured and the
             // player is built ([com.tmplayer.player.StreamWarmup]).
             if (local != LocalFileAvailability.Complete) com.tmplayer.player.StreamWarmup.warm(item) { settings.resumeStartFor(item) }
@@ -1228,6 +1242,7 @@ private fun Root() {
                 partialBytes = partial,
             )
             val plan = decision.plan
+            DiagnosticSession.event("PLAY_PREPARE", "stage=storage_decision durationMs=${SystemClock.elapsedRealtime() - pressedAt} result=${plan.javaClass.simpleName}")
 
             // A video the viewer downloaded on purpose is not cache and must not become it: taking
             // it over as the cache slot would have the next play delete a video they chose to keep.
@@ -1244,8 +1259,9 @@ private fun Root() {
                 if (!kept) scope.launch { settings.rememberCachedVideo(item, chatTitle) }
                 com.tmplayer.ui.components.PlayPress.open()
                 // The room was decided just above, so the player need not measure it again.
+                DiagnosticSession.event("PLAY_PREPARE", "stage=launch_player durationMs=${SystemClock.elapsedRealtime() - pressedAt}")
                 context.startActivity(
-                    PlayerActivity.intent(context, item, chatTitle)
+                    PlayerActivity.intent(context, item, chatTitle, pressedAt)
                         .putExtra(PlayerActivity.EXTRA_ROOM_DECIDED, item.fileId),
                 )
             }
@@ -1285,7 +1301,7 @@ private fun Root() {
      * Starts playback, first clearing the previous video when there is no room for both.
      * [confirmed] is true once the viewer has answered the prompt.
      */
-    fun play(item: MediaItem, confirmed: Boolean = false, chatTitle: String = "") {
+    fun play(item: MediaItem, confirmed: Boolean = false, chatTitle: String = "", storedPressAt: Long? = null) {
         // A press on a video is not instant: before the player can open, this asks TDLib whether
         // the file is on disk, measures the disk, and reads the download history back one record
         // at a time. On a stick that is long enough for the viewer to conclude the press missed
@@ -1295,13 +1311,15 @@ private fun Root() {
         // until this activity stops or comes back).
         if ((preparing || com.tmplayer.ui.components.PlayPress.opened) && !confirmed) return
         preparing = true
+        val pressedAt = storedPressAt ?: SystemClock.elapsedRealtime()
+        if (storedPressAt == null) DiagnosticSession.event("PLAY_REQUEST", "confirmed=$confirmed")
         // Answered at once: the page's Play pill spins and, past a beat, a "Starting" pill says
         // which video is on its way (PlayPress, StartingStatus). It stays until the shell leaves
         // the screen for the player, or goes at once when nothing is going to open.
         val press = com.tmplayer.ui.components.PlayPress.begin(item.title)
         scope.launch {
             try {
-                playNow(item, confirmed, chatTitle)
+                playNow(item, confirmed, chatTitle, pressedAt)
             } finally {
                 preparing = false
                 if (!com.tmplayer.ui.components.PlayPress.opened) com.tmplayer.ui.components.PlayPress.end(press)
@@ -1359,12 +1377,12 @@ private fun Root() {
     }
 
     /** [openStored] once its guard is up. */
-    suspend fun openStoredNow(stored: MediaItem, chatTitle: String) {
+    suspend fun openStoredNow(stored: MediaItem, chatTitle: String, pressedAt: Long) {
         settings.rememberChatOpened(stored.chatId)
         // In the Downloads folder: it plays from there, and asking Telegram first would only
         // be a wait, and offline a long one.
         if (LocalDownloads.fileFor(settings, stored.chatId, stored.messageId) != null) {
-            play(stored, chatTitle = chatTitle)
+            play(stored, chatTitle = chatTitle, storedPressAt = pressedAt)
             return
         }
         // The stored row carries a file id from whichever TDLib instance wrote it, which is
@@ -1374,10 +1392,13 @@ private fun Root() {
         // video is already on the device. Gone for good (HX21): said here, and the lists let it
         // go ([com.tmplayer.data.GoneVideos]); not answered in time: the stored row plays, and
         // the player asks again itself, rather than the press spinning until Telegram answers.
-        when (val lookup = Td.lookupMedia(stored.chatId, stored.messageId)) {
-            is com.tmplayer.data.MessageLookup.Found -> play(lookup.item, chatTitle = chatTitle)
+        DiagnosticSession.event("PLAY_PREPARE", "stage=stored_lookup")
+        val lookup = Td.lookupMedia(stored.chatId, stored.messageId)
+        DiagnosticSession.event("PLAY_PREPARE", "stage=stored_resolved durationMs=${SystemClock.elapsedRealtime() - pressedAt} result=${lookup.javaClass.simpleName}")
+        when (lookup) {
+            is com.tmplayer.data.MessageLookup.Found -> play(lookup.item, chatTitle = chatTitle, storedPressAt = pressedAt)
             is com.tmplayer.data.MessageLookup.Gone -> toast(com.tmplayer.data.GoneVideos.openMessage(lookup.reason))
-            com.tmplayer.data.MessageLookup.Unreachable -> play(stored, chatTitle = chatTitle)
+            com.tmplayer.data.MessageLookup.Unreachable -> play(stored, chatTitle = chatTitle, storedPressAt = pressedAt)
         }
     }
 
@@ -1391,11 +1412,13 @@ private fun Root() {
         // both got through and opened the player twice.
         if (openingStored || preparing || com.tmplayer.ui.components.PlayPress.opened) return
         openingStored = true
+        val pressedAt = SystemClock.elapsedRealtime()
+        DiagnosticSession.event("PLAY_REQUEST", "stored=true")
         // The wait for Telegram's fresh copy is part of the press too.
         val press = com.tmplayer.ui.components.PlayPress.begin(stored.title)
         scope.launch {
             try {
-                openStoredNow(stored, chatTitle)
+                openStoredNow(stored, chatTitle, pressedAt)
             } finally {
                 openingStored = false
                 // play() took the press over with its own; this one only ends a lookup that failed.
@@ -1439,7 +1462,13 @@ private fun Root() {
             kotlinx.coroutines.delay(com.tmplayer.ui.browse.HomeFirstPaint.HOLD_MAX_MS)
             homeHoldOver = true
         }
-        val holdForHome = reached && !setupPending && !gateUp && !(appLock?.onOpen == true && !appUnlocked) && !homeHoldOver && !com.tmplayer.ui.browse.HomeFirstPaint.ready
+        val homeReady = com.tmplayer.ui.browse.HomeFirstPaint.ready
+        val holdForHome = reached && !setupPending && !gateUp && !(appLock?.onOpen == true && !appUnlocked) && !homeHoldOver && !homeReady
+        if (device == "tv") {
+            LaunchedEffect(reached, holdForHome, homeReady) {
+                DiagnosticSession.tvPhase("HOME_LOADER", "authorized=$reached holdingForHome=$holdForHome homeReady=$homeReady timeout=$homeHoldOver")
+            }
+        }
         com.tmplayer.ui.components.BrandLoaderHandOff(
             label = com.tmplayer.ui.auth.loaderLabel(shownAuth, LocalStrings.current)
                 ?: if (holdForHome) LocalStrings.current.loginGettingReady else null,

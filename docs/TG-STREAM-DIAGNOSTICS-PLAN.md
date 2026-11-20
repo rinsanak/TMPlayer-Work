@@ -48,3 +48,27 @@ Do not tag, push the build-request marker, run a release workflow or publish thi
 Owner requested an APK update to install on TV and return diagnostics, confirming Stop Log must deliver to Saved Messages. Prepared `v1.0.16-beta.1` locally (versionCode `1001601`) and its release notes for that device test. This intentionally selects full CI rather than v1.0.15's focused checks. The beta does not replace stable latest.json. The signed universal APK would be `TG-Stream-1.0.16-beta.1-universal.apk`; it does not exist yet.
 
 The earlier explicit prohibition on agent publishing commands is still a blocker until the owner explicitly lifts it. No tag, push, remote source update, workflow run or release was performed. The actual signing backup is still unverified; approval must also resolve whether the existing Environment signing key, guarded by the pinned certificate check, may be used before locating its offline backup.
+
+## TV Home recording control
+
+The TV Home top bar has a single remote-focusable control. The circle starts a recording. The
+square stops it and exports the ZIP through the existing Saved Messages path. Settings and Home
+share the same action and export state, so leaving Home while an upload is pending keeps the
+same attempt. After an interrupted recording, the square lets the viewer export the retained
+session.
+
+TV ZIPs include a bounded trail from the current process launch and structured timing during
+recording. Compare first window pre-draw, Home loader and row readiness, local and connected chat
+loading, Play preparation, source open and first readable bytes, and the first rendered frame.
+Monotonic event timestamps, main-thread scheduling delay, process CPU and memory samples help
+align the phases. TV capture uses structured events and warning types, excluding raw logcat,
+settings values and media identifiers.
+
+For a cold-start sample, open TG Stream, press the circle on Home, wait briefly and play a video
+that has startup lag. Return to Home in the same process and press the square. Confirm that the
+ZIP appears as a document in the signed-in Telegram account's Saved Messages. The TV log is
+needed to locate the lag and to choose the next performance change.
+
+Local Android validation passed for all seven focused tests covering D-pad focus, phone ZIP
+reading, startup timing, TV log privacy, and send acknowledgement. The debug APK assembled
+successfully. Real TV timing, live Saved Messages delivery and a signed release remain pending.

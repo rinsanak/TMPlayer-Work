@@ -426,7 +426,10 @@ object Td {
     private suspend fun clientLoop() = coroutineScope {
         while (isActive) {
             val closed = CompletableDeferred<Unit>()
+            val createStarted = System.nanoTime()
+            PerfLog.sinceStart("tdlib client create requested")
             val td = TdlClient.create()
+            PerfLog.mark("tdlib client created", createStarted)
             current = td
             retiring = null
             _session.value = TdSession(td, generation.incrementAndGet())
@@ -856,6 +859,8 @@ object Td {
             )
             return
         }
+        val parametersStarted = System.nanoTime()
+        PerfLog.sinceStart("tdlib database open requested")
         val result = td.setTdlibParameters(
             useTestDc = false,
             databaseDirectory = paths.databaseDir.absolutePath,
@@ -872,6 +877,7 @@ object Td {
             systemVersion = device.systemVersion,
             applicationVersion = device.appVersion,
         )
+        PerfLog.mark("tdlib parameters answered (success=${result is TdlResult.Success})", parametersStarted)
         if (result is TdlResult.Failure) {
             _auth.value = AuthState.Failed(L.errorsTdlibParameters(result.message))
             return

@@ -1094,6 +1094,10 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         val now = SystemClock.elapsedRealtime()
         val fromPress = if (pressedAt > 0) "press to first frame ${now - pressedAt} ms, " else ""
         Log.i(START_TAG, "${fromPress}open to first frame ${now - openedAt} ms (file $fileId, resume $resumeMs ms, ${if (downloadedFile != null) "download" else "stream"})")
+        com.tmplayer.data.DiagnosticSession.event(
+            "FIRST_FRAME",
+            "sinceOpenMs=${now - openedAt} sincePlayMs=${pressedAt.takeIf { it > 0 }?.let { now - it }} localDownload=${downloadedFile != null}",
+        )
         openedAt = 0L
         pressedAt = 0L
         openedGate.complete(Unit)
@@ -1752,6 +1756,10 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         openedGate = CompletableDeferred()
         // What starting this screen cost after the press: on a weak TV stick a part of the wait.
         if (pressedAt > 0) Log.i(START_TAG, "player screen open at ${openedAt - pressedAt} ms since press (file $fileId)")
+        com.tmplayer.data.DiagnosticSession.event(
+            "PLAYER_OPEN",
+            "sincePlayMs=${pressedAt.takeIf { it > 0 }?.let { openedAt - it }}",
+        )
         // Read once: a later open of the same intent (a recreate) is not a press.
         from.removeExtra(EXTRA_PRESSED_AT)
         chatId = from.getLongExtra(EXTRA_CHAT_ID, 0)
@@ -4272,6 +4280,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            com.tmplayer.data.DiagnosticSession.event("PLAYER_ERROR", "code=${error.errorCodeName} cause=${error.cause?.javaClass?.simpleName}")
             // Every way out of here ends in the status sheet (HX10): a recovery step that throws
             // falls back to the plain error rather than taking the app down with the video.
             try {
@@ -9329,7 +9338,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             lastOrientation = remembered
         }
 
-        fun intent(context: Context, picked: MediaItem, chatTitle: String = ""): Intent =
+        fun intent(context: Context, picked: MediaItem, chatTitle: String = "", pressedAt: Long? = null): Intent =
             Intent(context, PlayerActivity::class.java).apply {
                 // A Telegram copy (CP80) travels as the upload and a wish for that copy, so the
                 // player still knows the upload's file for the place, a download and its copies.
@@ -9338,7 +9347,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                 // A film's other copies go with it, for the player's copy button.
                 if (item.versions.size > 1) CopyHandoff.offer(item.versions, mapOf(item.chatId to chatTitle).filterValues { it.isNotBlank() })
                 putExtra(EXTRA_FILE_ID, item.fileId)
-                putExtra(EXTRA_PRESSED_AT, SystemClock.elapsedRealtime())
+                putExtra(EXTRA_PRESSED_AT, pressedAt ?: SystemClock.elapsedRealtime())
                 putExtra(EXTRA_SIZE, item.sizeBytes)
                 putExtra(EXTRA_DURATION, item.durationSec)
                 putExtra(EXTRA_CHAT_ID, item.chatId)

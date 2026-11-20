@@ -21,13 +21,12 @@ import java.io.File
 object AndroidLogSink : LogSink {
     override fun i(tag: String, message: String) {
         Log.i(tag, message)
-        if (tag == "tm-perf" || (tag == "Td" && (message.startsWith("auth:") || message.startsWith("connection:")))) DiagnosticSession.phase(tag, message)
-        else DiagnosticSession.event("CORE/$tag", message)
+        DiagnosticSession.coreLog(tag, message)
     }
 
     override fun w(tag: String, message: String, error: Throwable?) {
         if (error == null) Log.w(tag, message) else Log.w(tag, message, error)
-        DiagnosticSession.event("CORE_ERROR/$tag", message + (error?.let { "\n" + it.stackTraceToString() } ?: ""))
+        DiagnosticSession.coreWarning(tag, message, error)
     }
 }
 
