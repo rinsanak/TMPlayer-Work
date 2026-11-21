@@ -1296,6 +1296,7 @@
     "wrong_number": "Wrong number? Edit"
   },
   "logs": {
+    "auto_start": "Start Log when app opens",
     "developer_on": "Developer options are on. Save name check is in Settings, under Save logs.",
     "empty": "There are no logs to save yet.",
     "failed": "The logs could not be saved.",

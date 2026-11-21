@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** Explicit, app-only recording. No background upload or typed-text capture. */
 object DiagnosticSession {
+    private const val AUTO_START = "auto_start"
     data class Status(
         val serial: Long = 0,
         val recording: Boolean = false,
@@ -107,6 +108,15 @@ object DiagnosticSession {
             override fun onActivitySaveInstanceState(a: Activity, b: Bundle) { event("ACTIVITY", "saveState ${a.javaClass.simpleName}") }
             override fun onActivityDestroyed(a: Activity) { event("ACTIVITY", "destroyed ${a.javaClass.simpleName} changingConfiguration=${a.isChangingConfigurations}") }
         })
+        if (prefs.getBoolean(AUTO_START, false) && !mutable.value.pendingExport) {
+            Thread({ runCatching { start() } }, "TG-diagnostic-auto-start").start()
+        }
+    }
+    fun autoStartEnabled(): Boolean = app?.getSharedPreferences("diagnostic-session", 0)
+        ?.getBoolean(AUTO_START, false) ?: false
+
+    fun setAutoStartEnabled(enabled: Boolean) {
+        app?.getSharedPreferences("diagnostic-session", 0)?.edit()?.putBoolean(AUTO_START, enabled)?.apply()
     }
     private class RecordingCallback(private val original: Window.Callback, private val screen: String) : Window.Callback by original {
         override fun dispatchTouchEvent(e: MotionEvent): Boolean {

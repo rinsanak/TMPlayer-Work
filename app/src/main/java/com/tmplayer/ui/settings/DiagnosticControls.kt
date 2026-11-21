@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,7 +51,18 @@ internal fun DiagnosticControls(modifier: Modifier = Modifier) {
     val state by DiagnosticSession.status.collectAsState()
     val busy by DiagnosticActions.busy.collectAsState()
     val context = LocalContext.current
+    var autoStart by remember { mutableStateOf(DiagnosticSession.autoStartEnabled()) }
     Column(modifier.background(Tone.surface, RoundedCornerShape(24.dp)).glassPanel().padding(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        ToggleRow(
+            title = L.logsAutoStart,
+            subtitle = L.logsAutoStart,
+            icon = com.tmplayer.ui.icons.TmIcons.Logs,
+            checked = autoStart,
+            onToggle = {
+                autoStart = !autoStart
+                DiagnosticSession.setAutoStartEnabled(autoStart)
+            },
+        )
         if (state.serial > 0) Text(L.logsSessionNumber(state.serial), color = Tone.text)
         if (state.error != null) Text(L.logsFailed, color = Tone.text)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
