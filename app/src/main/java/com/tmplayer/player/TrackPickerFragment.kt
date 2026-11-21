@@ -1,6 +1,7 @@
 package com.tmplayer.player
 
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -152,12 +153,18 @@ class TrackPickerFragment : Fragment() {
 
     /** Closes the picker from any page. */
     private fun close() {
+        com.tmplayer.data.DiagnosticSession.event("TRACK_PICKER", "closed type=$trackType")
         val fm = parentFragmentManager
         if (isAdded && !fm.isStateSaved) fm.popBackStack(BACK_STACK, FragmentManager.POP_BACK_STACK_INCLUSIVE)
     }
 
     @Composable
     private fun PickerPanel() {
+        LaunchedEffect(Unit) {
+            val requested = requireArguments().getLong(ARG_OPENED_AT)
+            val elapsed = requested.takeIf { it > 0 }?.let { SystemClock.elapsedRealtime() - it }
+            com.tmplayer.data.DiagnosticSession.event("TRACK_PICKER", "first_composition type=$trackType sinceRequestMs=$elapsed")
+        }
         val startOnline = requireArguments().getBoolean(ARG_ONLINE)
         var page by remember { mutableStateOf(if (startOnline) Page.Online else Page.Tracks) }
         val touch = isTouch()
@@ -410,6 +417,7 @@ class TrackPickerFragment : Fragment() {
     }
 
     private fun choose(option: Option) {
+        val started = SystemClock.elapsedRealtime()
         val player = host?.player
         if (player != null) {
             val builder = player.trackSelectionParameters.buildUpon().clearOverridesOfType(trackType)
@@ -422,6 +430,7 @@ class TrackPickerFragment : Fragment() {
             }
             player.trackSelectionParameters = builder.build()
         }
+        com.tmplayer.data.DiagnosticSession.event("TRACK_PICKER", "selection type=$trackType off=${option.group == null} applyMs=${SystemClock.elapsedRealtime() - started}")
         close()
     }
 
@@ -771,8 +780,14 @@ class TrackPickerFragment : Fragment() {
                 selected = line.selected,
                 icon = line.icon,
                 enabled = line.enabled,
-                modifier = if (line.key == focusKey) Modifier.focusRequester(firstFocus) else Modifier,
-                onClick = line.onClick,
+                modifier = (if (line.key == focusKey) Modifier.focusRequester(firstFocus) else Modifier)
+                    .onFocusChanged { if (it.isFocused) com.tmplayer.data.DiagnosticSession.event("TRACK_FOCUS", "type=$trackType group=${line.group.name} index=$index") },
+                onClick = {
+                    val started = SystemClock.elapsedRealtime()
+                    com.tmplayer.data.DiagnosticSession.event("TRACK_ACTION", "type=$trackType group=${line.group.name} index=$index pressed")
+                    line.onClick()
+                    com.tmplayer.data.DiagnosticSession.event("TRACK_ACTION", "type=$trackType group=${line.group.name} index=$index handledMs=${SystemClock.elapsedRealtime() - started}")
+                },
             )
         }
     }
@@ -876,6 +891,7 @@ class TrackPickerFragment : Fragment() {
 
     companion object {
         private const val ARG_TRACK_TYPE = "track_type"
+        private const val ARG_OPENED_AT = "opened_at"
 
         /** The room that opens a group without a heading: about what a heading's top takes. */
         private val GROUP_GAP = 8.dp
@@ -918,6 +934,7 @@ class TrackPickerFragment : Fragment() {
                 arguments = Bundle().apply {
                     putInt(ARG_TRACK_TYPE, trackType)
                     putBoolean(ARG_ONLINE, online)
+                    putLong(ARG_OPENED_AT, SystemClock.elapsedRealtime())
                 }
             }
             fm.beginTransaction().add(container, picker, TAG).addToBackStack(BACK_STACK).commit()

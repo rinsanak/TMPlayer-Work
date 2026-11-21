@@ -43,6 +43,7 @@ object DiagnosticSession {
     private val dropped = AtomicLong()
     private val probePending = AtomicBoolean()
     private val phases = java.util.ArrayDeque<String>()
+    private var threadTicks = emptyMap<Int, Long>()
 
     /** Keep the initial TV timings in memory until the viewer starts a recording. */
     fun phase(source: String, message: String) {
@@ -68,11 +69,14 @@ object DiagnosticSession {
 
     fun coreWarning(tag: String, message: String, error: Throwable?) {
         if (tvCapture) {
-            event("CORE_WARNING", "tag=$tag type=${error?.javaClass?.simpleName ?: "warning"}")
+            event("CORE_WARNING", "tag=$tag type=${error?.javaClass?.simpleName ?: "warning"} frames=${safeFrames(error)}")
         } else {
             event("CORE_ERROR/$tag", message + (error?.let { "\n" + it.stackTraceToString() } ?: ""))
         }
     }
+
+    private fun safeFrames(error: Throwable?): String = error?.stackTrace?.take(8)
+        ?.joinToString(";") { "${it.className}.${it.methodName}:${it.lineNumber}" } ?: "none"
 
     private val worker = ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, ArrayBlockingQueue(8192),
         java.util.concurrent.ThreadFactory { task -> Thread(task, "TG-diagnostic-writer").apply { isDaemon = true } }).apply { allowCoreThreadTimeOut(true) }
@@ -88,7 +92,7 @@ object DiagnosticSession {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching {
-                val details = if (tvCapture) error.javaClass.simpleName else "thread=${thread.name}\n${error.stackTraceToString()}"
+                val details = if (tvCapture) "type=${error.javaClass.simpleName} frames=${safeFrames(error)}" else "thread=${thread.name}\n${error.stackTraceToString()}"
                 journal?.record("CRASH", details)
                 journal?.flush()
             }
@@ -124,8 +128,25 @@ object DiagnosticSession {
             return original.dispatchTouchEvent(e)
         }
         override fun dispatchKeyEvent(e: KeyEvent): Boolean {
-            if (e.action == KeyEvent.ACTION_UP && e.keyCode in navigationKeys) event("INPUT", "$screen key=${e.keyCode}")
-            return original.dispatchKeyEvent(e)
+            val tracked = e.keyCode in navigationKeys
+            val started = SystemClock.elapsedRealtime()
+            if (tracked && e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) {
+                event("INPUT", "$screen key=${e.keyCode} action=down")
+                if (journal != null) {
+                    val key = e.keyCode
+                    android.view.Choreographer.getInstance().postFrameCallback {
+                        event("INPUT_VSYNC", "$screen key=$key delayMs=${SystemClock.elapsedRealtime() - started}")
+                    }
+                }
+            }
+            val handled = original.dispatchKeyEvent(e)
+            if (tracked && e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) {
+                event("INPUT_DISPATCH", "$screen key=${e.keyCode} handled=$handled durationMs=${SystemClock.elapsedRealtime() - started}")
+            }
+            if (tracked && e.action == KeyEvent.ACTION_UP) {
+                event("INPUT", "$screen key=${e.keyCode} action=up handled=$handled dispatchMs=${SystemClock.elapsedRealtime() - started}")
+            }
+            return handled
         }
     }
     private val navigationKeys = setOf(4, 19, 20, 21, 22, 23, 66, 82, 85, 86, 87, 88, 89, 90)
@@ -164,6 +185,7 @@ object DiagnosticSession {
             if (!prefs.edit().putLong("serial", serial).putBoolean("active", true).commit()) throw java.io.IOException("Cannot persist log serial")
         } catch (e: Exception) { runCatching { target.close() }; throw e }
         capturePaused = false; captureClosing = false; dropped.set(0); journal = target; mutable.value = Status(serial, recording = true, pendingExport = true)
+        threadTicks = emptyMap()
         synchronized(phases) { phases.forEach { event("STARTUP_TRAIL", it) } }
         if (interrupted) event("PREVIOUS_SESSION", "Previous process ended before Stop; files retained under diagnostics")
         event("COVERAGE", if (tvCapture) {
@@ -176,6 +198,7 @@ object DiagnosticSession {
         }
         var previousCpu = Process.getElapsedCpuTime()
         var previousElapsed = SystemClock.elapsedRealtime()
+        var sampleNumber = 0
         val mainHandler = android.os.Handler(context.mainLooper)
         timer = java.util.Timer("TG-diagnostic-sampler", true).apply { scheduleAtFixedRate(object : java.util.TimerTask() {
             override fun run() {
@@ -189,6 +212,7 @@ object DiagnosticSession {
                     val interval = (now - previousElapsed).coerceAtLeast(1)
                     event("CPU", "intervalMs=$interval processCpuMs=${cpu - previousCpu} percent=${(cpu - previousCpu) * 100 / interval}")
                     previousCpu = cpu; previousElapsed = now
+                    if (++sampleNumber % 5 == 0 && tvCapture) sampleThreadCpu()
                     if (probePending.compareAndSet(false, true)) mainHandler.post {
                         probePending.set(false)
                         if (journal !== target || captureClosing) return@post
@@ -200,6 +224,30 @@ object DiagnosticSession {
             }
         }, 0, 1000) }
         return serial
+    }
+    /** Five second CPU deltas show which worker is busy without copying private logcat on TV. */
+    private fun sampleThreadCpu() {
+        val tasks = File("/proc/self/task").listFiles().orEmpty()
+        if (tasks.isEmpty()) {
+            event("THREAD_CPU", "unavailable")
+            return
+        }
+        val current = HashMap<Int, Long>(tasks.size)
+        val busiest = ArrayList<Pair<String, Long>>()
+        for (task in tasks) {
+            val tid = task.name.toIntOrNull() ?: continue
+            val stat = runCatching { File(task, "stat").readText() }.getOrNull() ?: continue
+            val fields = stat.substringAfterLast(')', "").trim().split(Regex("\\s+"))
+            val ticks = fields.getOrNull(11)?.toLongOrNull()?.plus(fields.getOrNull(12)?.toLongOrNull() ?: 0L) ?: continue
+            current[tid] = ticks
+            val delta = ticks - (threadTicks[tid] ?: continue)
+            if (delta <= 0) continue
+            val name = runCatching { File(task, "comm").readText().trim() }.getOrDefault("unknown")
+                .replace(Regex("[^A-Za-z0-9_.-]"), "_").replace(Regex("[0-9]+"), "#").take(32)
+            busiest += name to delta
+        }
+        threadTicks = current
+        if (busiest.isNotEmpty()) event("THREAD_CPU", "windowMs=5000 top=${busiest.sortedByDescending { it.second }.take(6).joinToString { "${it.first}:${it.second}" }} ticks")
     }
     private fun capturePhoneDetails(context: Application, target: DiagnosticJournal) {
         runCatching {

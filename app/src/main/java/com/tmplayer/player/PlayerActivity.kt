@@ -1916,6 +1916,10 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         itemScope.launch {
             val session = Td.awaitAuthorizedSession()
             markStart("session ready", STAGE_SESSION)
+            fun setupPhase(step: String) {
+                val origin = pressedAt.takeIf { it > 0 } ?: openedAt
+                com.tmplayer.data.DiagnosticSession.phase("PLAYER_SETUP", "stage=$step sinceStartMs=${SystemClock.elapsedRealtime() - origin}")
+            }
             // The settings the player is built with, read side by side and alongside the file's
             // own decisions below, rather than one after another once those are made: each is a
             // read of the store, and fifteen in a row came before the first request.
@@ -1940,11 +1944,13 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             // A video cut into byte pieces plays as the one file it was, joined: none of its
             // pieces is a video on its own, whatever the download index or the cache holds of one.
             val joined = mayBeJoined() && findPieces(session.client)
+            setupPhase("pieces_checked")
             if (joined && !prepareJoined(session.client)) return@launch
             // The download index first. Every way into this screen passes here, the next episode
             // and autoplay included, so a downloaded episode plays from its file however it was
             // reached.
             val downloaded = if (joined) null else LocalDownloads.fileFor(settings, chatId, messageId)
+            setupPhase("download_index_checked")
             downloadedFile = downloaded
             if (joined) {
                 // Decided for every piece in [prepareJoined].
@@ -1983,6 +1989,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                 val roomDecidedFor = intent.getIntExtra(EXTRA_ROOM_DECIDED, 0)
                 intent.removeExtra(EXTRA_ROOM_DECIDED)
                 if (roomDecidedFor != fileId && !makeRoomForThisVideo(availability)) return@launch
+                setupPhase("file_and_storage_checked")
                 // The head and the index on their way while the settings are read and the player
                 // is built ([StreamWarmup]); a no-op if the press already started it.
                 // From the saved place, read as [resumeRead] reads it, where the video resumes.
@@ -1999,6 +2006,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
                     .getOrDefault(false)
                 if (downloadFirst && !fetchWholeFilm()) return@launch
             }
+            setupPhase("source_decided")
             val resumed = resumedRead.await()
             // Its own speed, else the series' or course's, else the chat's or topic's: [SpeedMemory].
             playbackSpeed = runCatching { settings.openingSpeed(resumed?.speed, speedScopes) }
@@ -2026,10 +2034,12 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
             applySubtitleStyle()
             delaysRead.await()?.let { syncDelays = it }
             subtitleDelayUs = syncDelays.subtitleMs * 1000
+            setupPhase("settings_ready")
             // The saved position, given a moment more if it is still being read: set before
             // prepare(), the first request goes to where the video resumes, not to byte 0 and
             // then a seek away from it.
             if (resumeRead.isActive) withTimeoutOrNull(RESUME_WAIT_MS) { resumeRead.join() }
+            setupPhase("resume_ready")
             if (!session.isCurrent()) return@launch
             markStart("file and settings decided", STAGE_DECIDED)
             startPlayback(session.client)
@@ -5545,6 +5555,7 @@ class PlayerActivity : FragmentActivity(), TrackPickerHost {
         get() = if (FormFactor.isTv(this)) null else ({ cancelAutomaticMsone(); subtitleFiles.pick() })
 
     fun showTrackPicker(trackType: Int) {
+        com.tmplayer.data.DiagnosticSession.event("TRACK_PICKER", "requested type=$trackType")
         if (trackType == C.TRACK_TYPE_TEXT) cancelAutomaticMsone()
         TrackPickerFragment.show(supportFragmentManager, R.id.overlay_container, trackType)
     }

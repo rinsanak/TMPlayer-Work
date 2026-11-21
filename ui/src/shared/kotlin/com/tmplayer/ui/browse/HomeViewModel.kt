@@ -628,6 +628,7 @@ class HomeViewModel(
     }
 
     private suspend fun fetchChat(chatId: Long): HomeFetches.Outcome {
+        val started = System.nanoTime()
         follow(chatId)
         val (items, lane) = try {
             kotlinx.coroutines.withTimeoutOrNull(ROW_TIMEOUT_MS) { source.chatMediaRead(chatId) }
@@ -635,12 +636,14 @@ class HomeViewModel(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Throwable) {
+            com.tmplayer.data.PerfLog.mark("home chat row failed (${failure.javaClass.simpleName})", started)
             Td.noteFailure(failure.message)
             // A failed refresh keeps the tiles it had; a row never answered shows as empty, and
             // is asked again after a pause (HomeFetches), or with the line, or on a refresh.
             if (_loaded.value[chatId] == null) _loaded.update { it + (chatId to emptyList()) }
             return HomeFetches.Outcome.of(failure)
         }
+        com.tmplayer.data.PerfLog.mark("home chat row fetched (items=${items.size})", started)
         val ended = lane?.done == true
         // Where the read stopped, for a See all page to read on from.
         if (lane == null) reads.remove(chatId) else reads[chatId] = lane
@@ -670,6 +673,7 @@ class HomeViewModel(
     private fun fetchRecent(fresh: Boolean, minGapMs: Long = 0) {
         if (!recentWanted) return
         fetches.ask("recent", fresh = fresh, minGapMs = minGapMs, before = if (fresh) ::untilIdle else null) {
+            val started = System.nanoTime()
             recentFailed = false
             val items = try {
                 kotlinx.coroutines.withTimeoutOrNull(ROW_TIMEOUT_MS) { source.recentMedia() }
@@ -677,12 +681,14 @@ class HomeViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Throwable) {
+                com.tmplayer.data.PerfLog.mark("home recent search failed (${failure.javaClass.simpleName})", started)
                 Td.noteFailure(failure.message)
                 recentFailed = true
                 // Never answered: an empty answer, so Home stops waiting for it.
                 if (_recent.value == null) _recent.value = emptyList()
                 return@ask HomeFetches.Outcome.of(failure)
             }
+            com.tmplayer.data.PerfLog.mark("home recent search returned (items=${items.size})", started)
             val kept = withinLimits(items)
             if (_recent.value != kept) _recent.value = kept
             noteFresh()
@@ -1043,6 +1049,7 @@ fun rememberHomeRows(
         val chosen = layout.needsRecent && added != null
         val addedIds = added.orEmpty()
         val key = listOf(chats, favourites, recent, autoFill, layout, added)
+        val pickStarted = System.nanoTime()
         val picking = homeMemo.home.takeIf { homeMemo.same(homeMemo.key, key) }?.let { it to homeMemo.recentFrom } ?: withContext(Dispatchers.Default) {
             val rowChats = if (layout.starredRows || (layout.needsRecent && !chosen)) HomeRows.favouriteChats(chats, favourites) else emptyList()
             val chosenChats = if (chosen) HomeLayout.chosenChats(chats, addedIds) else emptyList()
@@ -1056,6 +1063,7 @@ fun rememberHomeRows(
             // The same chats as before keep the list rows were built from, so the check below holds.
             (homeMemo.home?.takeIf { it == picked } ?: picked) to (if (chosen) chosenChats.map { it.id } else null)
         }
+        com.tmplayer.data.PerfLog.mark("home chats picked (chats=${chats.size} picked=${picking.first.size})", pickStarted)
         val home = picking.first.also { picked ->
             homeMemo.key = key
             if (picked !== homeMemo.home) {
@@ -1084,6 +1092,7 @@ fun rememberHomeRows(
         val inputs = listOf(continueWatching, watchLater, home, favourites, loaded, recent, partial, fresh, corrections, recentMinStarred, autoFill, chatsPending, layout, recentFrom, noneChosen)
         if (value.isNotEmpty() && homeMemo.same(homeMemo.built, inputs)) return@produceState
         if (value.isNotEmpty()) delay(HomeViewModel.ROWS_SETTLE_MS)
+        val buildStarted = System.nanoTime()
         val built = withContext(Dispatchers.Default) {
             HomeRows.build(
                 continueWatching, home, loaded, recent, partial = partial, watchLater = watchLater, fresh = fresh,
@@ -1091,6 +1100,7 @@ fun rememberHomeRows(
                 chatsPending = chatsPending, layout = layout, recentFrom = recentFrom, noneChosen = noneChosen,
             )
         }
+        com.tmplayer.data.PerfLog.mark("home rows built (rows=${built.size} loaded=${loaded.size} recent=${recent?.size ?: -1})", buildStarted)
         homeMemo.built = inputs
         model.lastRows = built
         value = built
