@@ -329,14 +329,7 @@ object HomeRows {
                 )
             }
         }
-    }.let { rows ->
-        if (!TgStreamUi.active) rows else {
-            val started = System.nanoTime()
-            HomeContent.clean(rows).also { cleaned ->
-                PerfLog.mark("home content cleaned (rows=${rows.size} kept=${cleaned.size})", started)
-            }
-        }
-    }
+    }.let { if (TgStreamUi.active) HomeContent.clean(it) else it }
 
     /**
      * What a row's "See all" page lists once [items] have been read of its chats (Home's own and
