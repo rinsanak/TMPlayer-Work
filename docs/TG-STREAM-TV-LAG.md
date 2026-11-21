@@ -16,4 +16,4 @@
 ## Progress and handoff
 
 - Added targeted timing and TV thread CPU samples locally. No performance fix is yet proven. The next TV ZIP should identify the busiest threads and separate Home fetch from Home composition. Use that evidence to change the expensive path, then compare startup, first frame, remote latency and idle CPU on the same TV.
-- `git diff --check` passed. Gradle tests and APK compilation could not start here because the Gradle 9.8.1 distribution is absent and the distribution download connection was refused. No APK or release was produced.
+- Prepared `v1.0.16-beta.4` as a diagnostic prerelease with focused Android CI. `git diff --check` passed. Gradle tests and APK compilation could not start here because the Gradle 9.8.1 distribution is absent and the distribution download connection was refused. No APK or release was produced.
