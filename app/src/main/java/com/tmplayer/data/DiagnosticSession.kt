@@ -42,6 +42,7 @@ object DiagnosticSession {
     private val captureLock = Any()
     private val dropped = AtomicLong()
     private val probePending = AtomicBoolean()
+    private val autoStartPending = AtomicBoolean()
     private val phases = java.util.ArrayDeque<String>()
     private var threadTicks = emptyMap<Int, Long>()
 
@@ -99,7 +100,17 @@ object DiagnosticSession {
             previous?.uncaughtException(thread, error)
         }
         application.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
-            override fun onActivityCreated(a: Activity, b: Bundle?) { phase("ACTIVITY", "created ${a.javaClass.simpleName} restored=${b != null}") }
+            override fun onActivityCreated(a: Activity, b: Bundle?) {
+                phase("ACTIVITY", "created ${a.javaClass.simpleName} restored=${b != null}")
+                // A background job can create the app process without opening the TV UI.
+                // Start only when an Activity exists so Stop exports the session the viewer used.
+                if (autoStartEnabled() && !mutable.value.pendingExport && autoStartPending.compareAndSet(false, true)) {
+                    Thread({
+                        try { runCatching { start() }.onFailure { mutable.value = mutable.value.copy(error = it.javaClass.simpleName) } }
+                        finally { autoStartPending.set(false) }
+                    }, "TG-diagnostic-auto-start").start()
+                }
+            }
             override fun onActivityStarted(a: Activity) { event("ACTIVITY", "started ${a.javaClass.simpleName}") }
             override fun onActivityResumed(a: Activity) {
                 currentActivity = java.lang.ref.WeakReference(a)
@@ -112,9 +123,6 @@ object DiagnosticSession {
             override fun onActivitySaveInstanceState(a: Activity, b: Bundle) { event("ACTIVITY", "saveState ${a.javaClass.simpleName}") }
             override fun onActivityDestroyed(a: Activity) { event("ACTIVITY", "destroyed ${a.javaClass.simpleName} changingConfiguration=${a.isChangingConfigurations}") }
         })
-        if (prefs.getBoolean(AUTO_START, false) && !mutable.value.pendingExport) {
-            Thread({ runCatching { start() } }, "TG-diagnostic-auto-start").start()
-        }
     }
     fun autoStartEnabled(): Boolean = app?.getSharedPreferences("diagnostic-session", 0)
         ?.getBoolean(AUTO_START, false) ?: false

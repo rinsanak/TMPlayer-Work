@@ -1,6 +1,8 @@
 package com.tmplayer.data
 
 import android.app.Application
+import android.app.Activity
+import org.robolectric.Robolectric
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -14,6 +16,28 @@ class DiagnosticSessionTest {
     private fun content(file: java.io.File): String = java.util.zip.ZipFile(file).use { zip ->
         zip.entries().asSequence().filter { it.name.startsWith("part-") }.sortedBy { it.name }
             .joinToString("\n") { zip.getInputStream(it).bufferedReader().use { reader -> reader.readText() } }
+    }
+    @Test fun `automatic recording waits for an Activity and retains startup trail`() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        try {
+            val app = RuntimeEnvironment.getApplication()
+            DiagnosticSession.install(app)
+            DiagnosticSession.setAutoStartEnabled(true)
+            DiagnosticSession.phase("APP_TEST", "before UI")
+            assertFalse("Background process must not start a session", DiagnosticSession.status.value.recording)
+
+            Robolectric.buildActivity(Activity::class.java).create().start().resume()
+            val deadline = System.currentTimeMillis() + 2000
+            while (!DiagnosticSession.status.value.recording && System.currentTimeMillis() < deadline) Thread.sleep(10)
+            assertTrue("Opening UI starts the session", DiagnosticSession.status.value.recording)
+            val lines = content(DiagnosticSession.stop())
+            assertTrue(lines.contains("APP_TEST before UI"))
+            assertTrue(lines.contains("ACTIVITY created Activity"))
+        } finally {
+            DiagnosticSession.setAutoStartEnabled(false)
+            runCatching { DiagnosticSession.stop() }
+            Thread.setDefaultUncaughtExceptionHandler(previous)
+        }
     }
     @Test fun `start is idempotent stop flushes accepted events and serials survive sessions`() {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
