@@ -76,6 +76,20 @@ class HomeContentTest {
         assertEquals(2, (entries.single() as ShelfEntry.File).item.versions.size)
     }
 
+    @Test fun `a renamed title overrides the cached original parse`() {
+        val item = video(13, "Quiet.Hills.2020.1080p.mkv")
+        val before = VideoCorrections.current
+        try {
+            VideoCorrections.set(emptyMap())
+            assertEquals("Quiet Hills", TitleIdentity.parsed(item).title)
+            assertSame(item.parsedName, TitleIdentity.parsed(item))
+            VideoCorrections.set(mapOf(item.id to VideoCorrection(title = "Harbour 2022")))
+            assertEquals("Harbour", TitleIdentity.parsed(item).title)
+        } finally {
+            VideoCorrections.set(before)
+        }
+    }
+
     @Test fun `cached groups are rebuilt without losing distinct original titles`() {
         val one = video(11, "@CC_Quiet_Hills_2020_1080p.mkv")
         val two = video(12, "@CC_Harbour_2022_720p.mkv")

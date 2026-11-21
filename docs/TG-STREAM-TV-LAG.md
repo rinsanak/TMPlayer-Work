@@ -4,6 +4,7 @@
 
 - TV diagnostic session 4: first Home row at about 40 seconds, first video frame at 8.3 seconds, second at 10.1 seconds. The local chat pass reported 182 chats in 15 seconds.
 - Session 5: local pass reported 40 chats in 8 seconds, while the first Home row arrived at about 46 seconds. CPU remained above 300 percent for much of the wait. This session did not include playback.
+- Session 6 on beta 4: the first fresh Home fetch finished at 7.7 seconds, but a Home row did not reach the screen until about 47.6 seconds. A completed row build took 4.5 seconds, and Home picking restarted repeatedly. The main and Default dispatcher threads were among the busiest; remote input dispatch was mostly under 32 ms, while the next frame sometimes took over a second. No play request or track picker was captured.
 - These timings establish lag and CPU contention. They do not identify the worker consuming the CPU or prove a playback fix.
 
 ## Plan and platform scope
@@ -17,3 +18,4 @@
 
 - Added targeted timing and TV thread CPU samples locally. No performance fix is yet proven. The next TV ZIP should identify the busiest threads and separate Home fetch from Home composition. Use that evidence to change the expensive path, then compare startup, first frame, remote latency and idle CPU on the same TV.
 - Prepared `v1.0.16-beta.4` as a diagnostic prerelease with focused Android CI. `git diff --check` passed. Gradle tests and APK compilation could not start here because the Gradle 9.8.1 distribution is absent and the distribution download connection was refused. No APK or release was produced.
+- Beta 4 was published and its GitHub Android CI and signed release checks passed. Session 6 points to repeated, expensive Home row builds. `TitleIdentity.parsed` was reparsing every unchanged file name despite `MediaItem.parsedName` caching the exact same result. Reuse that cache for uncorrected items and keep a separate parse for viewer renames. Time Home content cleanup separately on the next TV pass.

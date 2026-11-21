@@ -3,10 +3,10 @@ package com.tmplayer.data
 /** Repeated channel artwork is never a video identity. */
 object TitleIdentity {
     fun parsed(item: MediaItem): ParsedName {
-        val raw = VideoCorrections.current[item.id]?.title ?: item.nameForParsing
-        // MediaName understands a title attached to a channel handle and series markers.
-        // Removing the whole handle first also removed the title embedded in its underscores.
-        return MediaName.parse(raw, item.caption)
+        val renamed = VideoCorrections.current[item.id]?.title
+        // Home asks for the same identity several times per row build. MediaItem already caches
+        // this exact parse; only a viewer's rename needs a separate answer.
+        return if (renamed == null) item.parsedName else MediaName.parse(renamed, item.caption)
     }
     fun name(item: MediaItem): String = SeriesShelf.keyOf(parsed(item).title)
     fun year(item: MediaItem): Int? = parsed(item).year ?: item.parsedName.year
